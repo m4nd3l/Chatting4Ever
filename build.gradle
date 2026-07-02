@@ -1,0 +1,42 @@
+// BUILD.GRADLE: Chatting4Ever
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+group = 'dev.m4nd3l.chatting4ever'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    dependencies {
+        implementation 'com.formdev:flatlaf:3.5.4'
+        implementation 'com.formdev:flatlaf-intellij-themes:3.7.1'
+        implementation 'com.formdev:flatlaf-extras:3.5.4'
+        implementation 'com.intellij:forms_rt:7.0.3'
+
+        testImplementation platform('org.junit:junit-bom:5.10.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
