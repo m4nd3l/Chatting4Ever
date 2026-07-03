@@ -50,22 +50,12 @@ public class SearchController {
 
         if (isSomeNull(query)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'query' parameter"));
 
-        int startIndex = 0, finishIndex = 0;
-        List<User> matchedUsers = null;
+        int startIndex;
+        List<User> matchedUsers;
 
-        if (isAllNull(limitString, startString, countString)) {
-            matchedUsers = userService.searchUsers(query);
-        }
-
-        if (!isSomeNull(startString, countString)) {
-            startIndex = Integer.parseInt(startString);
-            finishIndex = startIndex + Integer.parseInt(countString);
-        } else if (!isSomeNull(limitString)) finishIndex = Integer.parseInt(limitString);
-
-        if (matchedUsers == null) {
-
-        }
-
+        if (!isSomeNull(startString, countString)) matchedUsers = userService.searchUsers(query, startIndex = Integer.parseInt(startString), startIndex + Integer.parseInt(countString));
+        else if (!isSomeNull(limitString)) matchedUsers = userService.searchUsers(query, Integer.parseInt(limitString));
+        else matchedUsers = userService.searchUsers(query);
 
         List<Map<String, String>> response = matchedUsers.stream().map(user -> Map.of(
                 "username", user.getUsername(),

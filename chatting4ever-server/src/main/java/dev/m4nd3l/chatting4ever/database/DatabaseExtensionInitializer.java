@@ -7,17 +7,19 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class DatabaseExtensionInitializer {
-
     private final JdbcTemplate jdbcTemplate;
 
-    public DatabaseExtensionInitializer(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+    public DatabaseExtensionInitializer(JdbcTemplate jdbcTemplate) { this.jdbcTemplate = jdbcTemplate; }
 
     @EventListener(ApplicationReadyEvent.class)
     public void initializeExtensions() {
-        jdbcTemplate.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
+        String databaseProductName = "";
+        try { databaseProductName = jdbcTemplate.getDataSource().getConnection().getMetaData().getDatabaseProductName(); }
+        catch (Exception exception) { return; }
 
+        if (!databaseProductName.equalsIgnoreCase("PostgreSQL")) return;
+
+        jdbcTemplate.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_user_username_trgm ON users USING gin (username gin_trgm_ops);");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_user_displayed_name_trgm ON users USING gin (displayed_name gin_trgm_ops);");
     }

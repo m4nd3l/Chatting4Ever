@@ -52,7 +52,9 @@ public class AuthController {
                 .setDisplayedName(displayedName)
                 .setPassword(password)
                 .setEmail(email)
-                .setVerifiedEmail(false);
+                .setVerifiedEmail(false)
+                .setProfileDescription("")
+                .setProfileNote("");
         userService.save(user);
 
         sendVerificationEmail(user);
@@ -169,7 +171,7 @@ public class AuthController {
         User user = userService.getUserByUsername(username);
         if (user == null) return ResponseEntity.status(401).body("Invalid credentials");
 
-        user.setProfileDescription(newProfileDescription);
+        user.setProfileDescription(newProfileDescription == null ? "" : newProfileDescription);
         userService.save(user);
 
         return ResponseEntity.ok("Profile description changed successfully");
@@ -187,7 +189,7 @@ public class AuthController {
         User user = userService.getUserByUsername(username);
         if (user == null) return ResponseEntity.status(401).body("Invalid credentials");
 
-        user.setProfileNote(newProfileNote);
+        user.setProfileNote(newProfileNote == null ? "" : newProfileNote);
         userService.save(user);
 
         return ResponseEntity.ok("Profile note changed successfully");
