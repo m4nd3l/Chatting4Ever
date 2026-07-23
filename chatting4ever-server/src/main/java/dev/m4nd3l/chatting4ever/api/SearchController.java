@@ -3,15 +3,11 @@ package dev.m4nd3l.chatting4ever.api;
 import dev.m4nd3l.chatting4ever.database.model.User;
 import dev.m4nd3l.chatting4ever.database.service.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/search")
@@ -21,34 +17,50 @@ public class SearchController {
     public SearchController(UserService userService) { this.userService = userService; }
 
     @PostMapping("/info")
-    public ResponseEntity<Map<String, String>> info(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
+    public ResponseEntity<Map<String, Object>> info(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+        String toSearch = request.get("username");
 
-        if (isSomeNull(username)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'username' parameter"));
+        if (isSomeNull(token)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'token' header", "success", false));
+        if (isSomeNull(toSearch)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'username' parameter", "success", false));
 
+        String username = JWTTokenProvider.validateTokenAndGetUsername(token);
+        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
         User user = userService.getUserByUsername(username);
-        if (user == null) return ResponseEntity.status(400).body(Map.of("error", "Couldn't find a user called '" + username + "'"));
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        User toSearchUser = userService.getUserByUsername(toSearch);
+        if (toSearchUser == null) return ResponseEntity.status(400).body(Map.of("error", "Couldn't find a user called '" + toSearch + "'", "success", false));
+
+        boolean isBlocked = toSearchUser.isBlocked(user.getID());
 
         return ResponseEntity.ok(Map.of(
-                "username", user.getUsername(),
-                "displayed-name", user.getDisplayedName(),
-                "online", String.valueOf(user.isOnline()),
-                "profile-description", user.getProfileDescription(),
-                "profile-note", user.getProfileNote(),
-                "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                "public-email", String.valueOf(user.isPublicEmail()),
-                "email", user.isPublicEmail() ? user.getEmail() : ""
+                "success", true,
+                "username", isBlocked ? user.getUsername() : "blocked",
+                "profile-image-url", user.getProfileImageURL(),
+                "displayed-name", isBlocked ? user.getDisplayedName() : "blocked",
+                "online", isBlocked ? String.valueOf(user.isOnline()) : "blocked",
+                "profile-description", isBlocked ? user.getProfileDescription() : "blocked",
+                "profile-note", isBlocked ? user.getProfileNote() : "blocked",
+                "created-at", isBlocked ? user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "blocked",
+                "public-email", isBlocked ? String.valueOf(user.isPublicEmail()) : "blocked",
+                "email", isBlocked ? user.isPublicEmail() ? user.getEmail() : "" : "blocked"
         ));
     }
 
     @PostMapping("/search")
-    public ResponseEntity<?> search(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> search(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
         String query = request.get("query");
         String limitString = request.get("limit");
         String startString = request.get("start");
         String countString = request.get("count");
 
-        if (isSomeNull(query)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'query' parameter"));
+        if (isSomeNull(token)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'token' header", "success", false));
+        if (isSomeNull(query)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'query' parameter", "success", false));
+
+        String username = JWTTokenProvider.validateTokenAndGetUsername(token);
+        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+        User user = userService.getUserByUsername(username);
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
         int startIndex;
         List<User> matchedUsers;
@@ -57,18 +69,21 @@ public class SearchController {
         else if (!isSomeNull(limitString)) matchedUsers = userService.searchUsers(query, Integer.parseInt(limitString));
         else matchedUsers = userService.searchUsers(query);
 
-        List<Map<String, String>> response = matchedUsers.stream().map(user -> Map.of(
-                "username", user.getUsername(),
-                "displayed-name", user.getDisplayedName(),
-                "online", String.valueOf(user.isOnline()),
-                "profile-description", user.getProfileDescription(),
-                "profile-note", user.getProfileNote(),
-                "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                "public-email", String.valueOf(user.isPublicEmail()),
-                "email", user.isPublicEmail() ? user.getEmail() : ""
-        )).collect(Collectors.toList());
+        matchedUsers.removeIf(currentUser -> currentUser.isBlocked(user.getID()));
 
-        return ResponseEntity.ok(response);
+        List<Map<String, String>> response = matchedUsers.stream().map(currentUser -> Map.of(
+                "username", currentUser.getUsername(),
+                "profile-image-url", currentUser.getProfileImageURL(),
+                "displayed-name", currentUser.getDisplayedName(),
+                "online", String.valueOf(currentUser.isOnline()),
+                "profile-description", currentUser.getProfileDescription(),
+                "profile-note", currentUser.getProfileNote(),
+                "created-at", currentUser.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                "public-email", String.valueOf(currentUser.isPublicEmail()),
+                "email", currentUser.isPublicEmail() ? currentUser.getEmail() : ""
+        )).toList();
+
+        return ResponseEntity.ok(Map.of("success", true, "users", response));
     }
 
     private boolean isSomeNull(Object... params) {

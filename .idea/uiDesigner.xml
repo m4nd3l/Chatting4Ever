@@ -120,5 +120,17 @@
         <default-constraints vsize-policy="6" hsize-policy="0" anchor="0" fill="2" />
       </item>
     </group>
+    <group name="Chatting4Ever Custom UI">
+      <item class="dev.m4nd3l.chatting4ever.components.CELabel" icon="/com/intellij/uiDesigner/icons/label.svg" removable="true" auto-create-binding="false" can-attach-label="false">
+        <default-constraints vsize-policy="0" hsize-policy="0" anchor="0" fill="0" />
+      </item>
+      <item class="dev.m4nd3l.chatting4ever.components.CETextField" icon="/com/intellij/uiDesigner/icons/textField.svg" removable="true" auto-create-binding="false" can-attach-label="true">
+        <default-constraints vsize-policy="0" hsize-policy="0" anchor="0" fill="0" />
+      </item>
+    </group>
+  </component>
+  <component name="uidesigner-configuration">
+    <option name="INSTRUMENT_CLASSES" value="false" />
+    <option name="GENERATE_SOURCES_ON_SAVE" value="true" />
   </component>
 </project>

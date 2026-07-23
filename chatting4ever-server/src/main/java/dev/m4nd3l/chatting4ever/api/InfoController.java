@@ -17,21 +17,21 @@ public class InfoController {
     public InfoController(UserService userService) { this.userService = userService; }
 
     @PostMapping("/is-username-taken")
-    public ResponseEntity<String> isUsernameTaken(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> isUsernameTaken(@RequestBody Map<String, String> request) {
         String username = request.get("username");
 
-        if (isSomeNull(username)) return ResponseEntity.status(400).body("Missing 'username' parameter");
+        if (isSomeNull(username)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'username' parameter", "success", false));
 
-        return ResponseEntity.ok(String.valueOf(userService.containsUsername(username)));
+        return ResponseEntity.ok(Map.of("success", true, "username-taken", userService.containsUsername(username)));
     }
 
     @PostMapping("/is-email-taken")
-    public ResponseEntity<String> isEmailTaken(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> isEmailTaken(@RequestBody Map<String, String> request) {
         String email = request.get("email");
 
-        if (isSomeNull(email)) return ResponseEntity.status(400).body("Missing 'email' parameter");
+        if (isSomeNull(email)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'email' parameter", "success", false));
 
-        return ResponseEntity.ok(String.valueOf(userService.containsEmail(email)));
+        return ResponseEntity.ok(Map.of("success", true, "email-taken", userService.containsEmail(email)));
     }
 
     private boolean isSomeNull(Object... params) {

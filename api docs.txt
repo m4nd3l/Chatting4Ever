@@ -1,0 +1,66 @@
+Chatting4Ever API Docs
+
+AUTH:
+ - http://localhost:8080/api/auth/register: POST
+    - Takes: username, displayed-name, email, password
+    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, token, success
+ - http://localhost:8080/api/auth/login: POST
+    - Takes: username/email, password
+    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, token, success
+ - http://localhost:8080/api/auth/change-username: POST
+    - Takes: token (header), new-username
+    - Returns: token, success
+ - http://localhost:8080/api/auth/change-displayed-name: POST
+    - Takes: token (header), new-displayed-name
+    - Returns: success
+ - http://localhost:8080/api/auth/change-email: POST
+    - Takes: token (header), new-email
+    - Returns: success
+ - http://localhost:8080/api/auth/change-password: POST
+    - Takes: token (header), old-password, new-password
+    - Returns: success
+ - http://localhost:8080/api/auth/change-profile-description: POST
+    - Takes: token (header), new-description
+    - Returns: success
+ - http://localhost:8080/api/auth/change-email-visibility: POST
+    - Takes: token (header), new-email-visibility
+    - Returns: success
+ - http://localhost:8080/api/auth/change-profile-note: POST
+    - Takes: token (header), new-note
+    - Returns: success
+ - http://localhost:8080/api/auth/verify-email: POST
+    - Takes: token (header), verification-code
+    - Returns: success
+ - http://localhost:8080/api/auth/resend-verification-email: GET
+    - Takes: token (header)
+    - Returns: success
+ - http://localhost:8080/api/auth/verify-forgot-password: POST
+    - Takes: email, code, new-password
+    - Returns: success
+ - http://localhost:8080/api/auth/forgot-password: POST
+    - Takes: email
+    - Returns: success
+ - http://localhost:8080/api/auth/delete: POST
+    - Takes: token (header), password
+    - Returns: success
+
+INFO:
+ - http://localhost:8080/api/info/is-username-taken: POST
+    - Takes: username
+    - Returns: username-taken, success
+ - http://localhost:8080/api/info/is-email-taken: POST
+    - Takes: email
+    - Returns: email-taken, success
+
+SEARCH:
+ - http://localhost:8080/api/search/info: POST
+    - Takes: token (header), username
+    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, success
+ - http://localhost:8080/api/search/search: POST
+    - Takes: token (header), query, [optional: limit, start, count]
+    - Returns: users -> (username, displayed-name, online, profile-description, profile-note, created-at, public-email, email), success
+
+MEDIA:
+ - http://localhost:8080/api/media/upload-profile-image: POST
+    - Takes: token (header), file (param)
+    - Returns: url, success

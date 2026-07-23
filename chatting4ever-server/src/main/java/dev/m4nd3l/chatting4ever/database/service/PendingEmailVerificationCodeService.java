@@ -30,7 +30,7 @@ public class PendingEmailVerificationCodeService {
         return verificationCodeOptional.orElse(null);
     }
 
-    public PendingEmailVerificationCode getVerificationCodesByUserID(long userID) {
+    public PendingEmailVerificationCode getVerificationCodeByUserID(long userID) {
         Optional<PendingEmailVerificationCode> verificationCodeOptional = verificationCodeRepository.findByUserID(userID);
         return verificationCodeOptional.orElse(null);
     }

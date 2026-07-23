@@ -17,6 +17,7 @@ public class User {
     private static final PasswordEncoder encoder = new BCryptPasswordEncoder();
 
     @Column(name = "id") @GeneratedValue(strategy = GenerationType.IDENTITY) @Id private long ID;
+    @Column(name = "profile_image_url") private String profileImageURL;
     @Column(name = "displayed_name") private String displayedName;
     @Column(unique = true) private String username;
     @Column(unique = true) private String email;
@@ -26,11 +27,12 @@ public class User {
     @Column(name = "is_online") private boolean online;
     @Column(name = "profile_description") private String profileDescription;
     @Column(name = "profile_note") private String profileNote;
-    @Column(name = "blocked_user_id") @CollectionTable(name = "blocked_users", joinColumns = @JoinColumn(name = "user_id")) @ElementCollection(fetch = FetchType.EAGER) private List<Long> blockedUsers;
+    @Column(name = "blocked_user_id") @CollectionTable(name = "blocked_users", joinColumns = @JoinColumn(name = "blocker_user_id")) @ElementCollection(fetch = FetchType.EAGER) private List<Long> blockedUsers;
     @Column(name = "created_at", nullable = false, updatable = false) @CreationTimestamp private LocalDateTime creationDate;
     @Column(name = "updated_at") @UpdateTimestamp private LocalDateTime updatedAt;
 
     public long getID() { return ID; }
+    public String getProfileImageURL() { return profileImageURL; }
     public String getUsername() { return username; }
     public String getDisplayedName() { return displayedName; }
     public String getEmail() { return email; }
@@ -49,6 +51,7 @@ public class User {
     }
 
     public User setID(long ID) { this.ID = ID; return this; }
+    public User setProfileImageURL(String profileImageURL) { this.profileImageURL = profileImageURL; return this; }
     public User setDisplayedName(String displayedName) { this.displayedName = displayedName; return this; }
     public User setUsername(String username) { this.username = username; return this; }
     public User setEmail(String email) { this.email = email; return this; }

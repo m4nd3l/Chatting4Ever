@@ -12,6 +12,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(24)
+    }
+}
+
 dependencies {
     // SERVER
     implementation 'org.springframework.boot:spring-boot-starter'
