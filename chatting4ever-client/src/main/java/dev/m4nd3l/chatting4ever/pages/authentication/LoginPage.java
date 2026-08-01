@@ -1,11 +1,9 @@
 package dev.m4nd3l.chatting4ever.pages.authentication;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import dev.m4nd3l.chatting4ever.Chatting4EverClient;
 import dev.m4nd3l.chatting4ever.account.AccountData;
-import dev.m4nd3l.chatting4ever.api.APIEndpoints;
-import dev.m4nd3l.chatting4ever.api.payloads.account.LoginPayload;
 import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
+import dev.m4nd3l.chatting4ever.components.CEButton;
 import dev.m4nd3l.chatting4ever.components.CELabel;
 import dev.m4nd3l.chatting4ever.components.CEPasswordField;
 import dev.m4nd3l.chatting4ever.components.CETextField;
@@ -24,8 +22,8 @@ public class LoginPage extends JPanel implements Page {
     private CETextField usernameOrEmailField;
     private CEPasswordField passwordField;
     private JCheckBox saveCredentialsCheckbox;
-    private JButton signupInsteadButton;
-    private JButton loginButton;
+    private CEButton signupInsteadButton;
+    private CEButton loginButton;
 
     public LoginPage() { init(); }
 
@@ -37,16 +35,16 @@ public class LoginPage extends JPanel implements Page {
         titleLabel.setFontSize(24);
         titleLabel.setFontStyle(Font.BOLD);
 
-        usernameOrEmailField = new CETextField("john.smith_", "[a-zA-Z0-9_.-@]+");
-        passwordField = new CEPasswordField(8);
+        usernameOrEmailField = new CETextField().setPlaceholder("john.smith_").setAcceptanceRegex("[a-zA-Z0-9_.-@]+");
+        passwordField = new CEPasswordField().setPlaceholderLength(8);
 
-        signupInsteadButton = new JButton("Don't have an account?");
+        signupInsteadButton = new CEButton("Don't have an account?");
         signupInsteadButton.putClientProperty(FlatClientProperties.STYLE, "borderWidth: 0; focusWidth: 0; background: null; foreground: #007aff");
         signupInsteadButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         saveCredentialsCheckbox = new JCheckBox("Save credentials", true);
 
-        loginButton = new JButton("Login");
+        loginButton = new CEButton("Login");
         loginButton.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #007aff; foreground: #ffffff");
 
         usernameOrEmailField.focusOnEnterIfCondition(passwordField, text -> {
@@ -134,39 +132,20 @@ public class LoginPage extends JPanel implements Page {
         String password = new String(passwordField.getPassword());
         if (!isEverythingValid(usernameOrEmail, password, true)) return;
 
-        try {
-            TokenAndInfoResponse data = APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password), TokenAndInfoResponse.class);
-            if (data.getErrorData() == null) {
-                AccountData.setAccount(
-                        new AccountData(
-                                data.getToken(),
-                                data.getUsername(),
-                                data.getDisplayedName(),
-                                data.getEmail(),
-                                data.getProfileImageURL(),
-                                data.getProfileDescription(),
-                                data.getProfileNote(),
-                                data.getCreatedAt(),
-                                data.isPublicEmail()));
-                EasySaves.addSetting("logged-in", String.valueOf(saveCredentialsCheckbox.isSelected()));
-                if (saveCredentialsCheckbox.isSelected()) {
-                    EasySaves.addSecureSetting(usernameOrEmail.contains("@") ? "email" : "username", usernameOrEmail);
-                    EasySaves.removeSetting(usernameOrEmail.contains("@") ? "username" : "email");
-                    EasySaves.addSecureSetting("password", password);
-                } else {
-                    EasySaves.removeSetting("username");
-                    EasySaves.removeSetting("email");
-                    EasySaves.removeSetting("password");
-                }
-            } else showError("An error occurred while logging in:\n" + data.getErrorData().getError());
-        } catch (Exception e) { showError("An error occurred while logging in, retry later"); }
-
         TokenAndInfoResponse data = login(usernameOrEmail, password);
-        if (data.getErrorData() != null) {
-            showError("An error occurred while changing email visibility:\n" + data.getErrorData().getError());
-            loginButton.setEnabled(true);
-            return;
-        }
+        if (data.isValidResponse()) {
+            AccountData.setAccount(data);
+            EasySaves.addSetting("logged-in", String.valueOf(saveCredentialsCheckbox.isSelected()));
+            if (saveCredentialsCheckbox.isSelected()) {
+                EasySaves.addSecureSetting(usernameOrEmail.contains("@") ? "email" : "username", usernameOrEmail);
+                EasySaves.removeSetting(usernameOrEmail.contains("@") ? "username" : "email");
+                EasySaves.addSecureSetting("password", password);
+            } else {
+                EasySaves.removeSetting("username");
+                EasySaves.removeSetting("email");
+                EasySaves.removeSetting("password");
+            }
+        } else showError("An error occurred while logging in:\n" + data.getErrorCause());
 
         loginButton.setEnabled(true);
         changePage(new MainPage());

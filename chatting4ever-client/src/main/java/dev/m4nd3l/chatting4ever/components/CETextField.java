@@ -19,15 +19,6 @@ public class CETextField extends JTextField implements FontGetter {
     private Timer clearErrorTimer;
 
     public CETextField() { super(); init(); }
-    public CETextField(String placeholder) { super(); this.placeholder = placeholder; init(); }
-    public CETextField(String placeholder, String acceptanceRegex) { super(); this.placeholder = placeholder; setAcceptanceRegex(acceptanceRegex); init(); }
-    public CETextField(int columns, String placeholder) { super(columns); this.placeholder = placeholder; init(); }
-    public CETextField(int columns, String placeholder, String acceptanceRegex) { super(columns); this.placeholder = placeholder; setAcceptanceRegex(acceptanceRegex); init(); }
-    public CETextField(Document doc, String text, int columns, String placeholder) { super(doc, text, columns); this.placeholder = placeholder; init(); }
-    public CETextField(Document doc, String text, int columns, String placeholder, String acceptanceRegex) { super(doc, text, columns); this.placeholder = placeholder; setAcceptanceRegex(acceptanceRegex); init(); }
-    public CETextField(String text, String placeholder, String acceptanceRegex) { super(text); this.placeholder = placeholder; setAcceptanceRegex(acceptanceRegex); init(); }
-    public CETextField(String text, int columns, String placeholder) { super(text, columns); this.placeholder = placeholder; init(); }
-    public CETextField(String text, int columns, String placeholder, String acceptanceRegex) { super(text, columns); this.placeholder = placeholder; setAcceptanceRegex(acceptanceRegex); init(); }
 
     private void init() {
         resetFontKeepingFontName();

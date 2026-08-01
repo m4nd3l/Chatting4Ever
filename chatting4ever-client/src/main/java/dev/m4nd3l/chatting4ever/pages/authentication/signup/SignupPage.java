@@ -7,6 +7,7 @@ import dev.m4nd3l.chatting4ever.account.AccountData;
 import dev.m4nd3l.chatting4ever.api.APIEndpoints;
 import dev.m4nd3l.chatting4ever.api.payloads.account.RegisterPayload;
 import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
+import dev.m4nd3l.chatting4ever.components.CEButton;
 import dev.m4nd3l.chatting4ever.components.CELabel;
 import dev.m4nd3l.chatting4ever.components.CEPasswordField;
 import dev.m4nd3l.chatting4ever.components.CETextField;
@@ -28,8 +29,8 @@ public class SignupPage extends JPanel implements Page {
     private CEPasswordField passwordField;
     private CEPasswordField confirmPasswordField;
     private JCheckBox saveCredentialsCheckbox;
-    private JButton loginInsteadButton;
-    private JButton registerButton;
+    private CEButton loginInsteadButton;
+    private CEButton registerButton;
 
     public SignupPage() { init(); }
 
@@ -41,19 +42,16 @@ public class SignupPage extends JPanel implements Page {
         titleLabel.setFontSize(24);
         titleLabel.setFontStyle(Font.BOLD);
 
-        usernameField = new CETextField("john.smith_", "[a-zA-Z0-9_.-]+");
-        emailField = new CETextField("john.smith99@example.org", "[a-zA-Z0-9_.-@]+");
-        passwordField = new CEPasswordField(8);
-        confirmPasswordField = new CEPasswordField(8);
+        usernameField = new CETextField().setPlaceholder("john.smith_").setAcceptanceRegex("[a-zA-Z0-9_.-]+");
+        emailField = new CETextField().setPlaceholder("john.smith99@example.org").setAcceptanceRegex("[a-zA-Z0-9_.-@]+");
+        passwordField = new CEPasswordField();
+        confirmPasswordField = new CEPasswordField();
 
-        loginInsteadButton = new JButton("Already have an account?");
-        loginInsteadButton.putClientProperty(FlatClientProperties.STYLE, "borderWidth: 0; focusWidth: 0; background: null; foreground: #007aff");
-        loginInsteadButton.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        loginInsteadButton = new CEButton("Already have an account?", true);
 
         saveCredentialsCheckbox = new JCheckBox("Save credentials", true);
 
-        registerButton = new JButton("Register");
-        registerButton.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #007aff; foreground: #ffffff");
+        registerButton = new CEButton("Register");
 
         usernameField.focusOnEnterIfCondition(emailField, username -> !isNullOrEmpty(username),
                 _ -> usernameField.showErrorBubble("Cannot submit an empty username"));
@@ -158,19 +156,9 @@ public class SignupPage extends JPanel implements Page {
         String confirmPassword = new String(confirmPasswordField.getPassword());
         if (!isEverythingValid(username, email, password, confirmPassword, true)) return;
 
-        try {
-            TokenAndInfoResponse data = APIEndpoints.register.sendPostRequest(new RegisterPayload(username, username, email, password), TokenAndInfoResponse.class);
-            AccountData.setAccount(
-                    new AccountData(
-                            data.getToken(),
-                            data.getUsername(),
-                            data.getDisplayedName(),
-                            data.getEmail(),
-                            data.getProfileImageURL(),
-                            data.getProfileDescription(),
-                            data.getProfileNote(),
-                            data.getCreatedAt(),
-                            data.isPublicEmail()));
+        TokenAndInfoResponse data = register(username, username, email, password);
+        if (data.isValidResponse()) {
+                AccountData.setAccount(data);
 
             EasySaves.addSetting("logged-in", String.valueOf(saveCredentialsCheckbox.isSelected()));
             if (saveCredentialsCheckbox.isSelected()) {
@@ -182,7 +170,8 @@ public class SignupPage extends JPanel implements Page {
                 EasySaves.removeSetting("email");
                 EasySaves.removeSetting("password");
             }
-        } catch (Exception e) { showError("An error occurred while signing up, retry later"); System.err.println(e); }
+        } else showError("An error occurred while signing up:\n" + data.getErrorCause());
+
         registerButton.setEnabled(true);
         changePage(new PersonalizeAccountPage());
     }

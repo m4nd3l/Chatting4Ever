@@ -3,9 +3,7 @@ package dev.m4nd3l.chatting4ever.components;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
-import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
 import java.awt.event.ActionListener;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -18,11 +16,6 @@ public class CEPasswordField extends JPasswordField implements FontGetter {
     private Timer clearErrorTimer;
 
     public CEPasswordField() { super(); init();  }
-    public CEPasswordField(int placeholderLength) { super(); this.placeholderLength = placeholderLength; init(); }
-    public CEPasswordField(int columns, int placeholderLength) { super(columns); this.placeholderLength = placeholderLength; init(); }
-    public CEPasswordField(Document doc, String text, int columns, int placeholderLength) { super(doc, text, columns); this.placeholderLength = placeholderLength; init(); }
-    public CEPasswordField(String text, int placeholderLength) { super(text); this.placeholderLength = placeholderLength; init(); }
-    public CEPasswordField(String text, int columns, int placeholderLength) { super(text, columns); this.placeholderLength = placeholderLength; init(); }
 
     private void init() {
         resetFontKeepingFontName();

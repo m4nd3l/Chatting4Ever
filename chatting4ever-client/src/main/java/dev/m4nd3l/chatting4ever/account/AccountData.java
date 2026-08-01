@@ -1,5 +1,7 @@
 package dev.m4nd3l.chatting4ever.account;
 
+import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
+
 import java.time.LocalDateTime;
 
 public class AccountData {
@@ -18,6 +20,19 @@ public class AccountData {
                         false) : account;
     }
     public static void setAccount(AccountData account) { AccountData.account = account; }
+    public static void setAccount(TokenAndInfoResponse data) {
+        setAccount(
+            new AccountData(
+                    data.getToken(),
+                    data.getUsername(),
+                    data.getDisplayedName(),
+                    data.getEmail(),
+                    data.getProfileImageURL(),
+                    data.getProfileDescription(),
+                    data.getProfileNote(),
+                    data.getCreatedAt(),
+                    data.isPublicEmail()));
+    }
 
     private String token;
     private String username;

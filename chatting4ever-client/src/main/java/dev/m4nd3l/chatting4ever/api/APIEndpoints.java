@@ -4,6 +4,7 @@ import dev.m4nd3l.chatting4ever.api.payloads.Payload;
 import dev.m4nd3l.chatting4ever.api.response.Response;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -64,7 +65,11 @@ public class APIEndpoints {
                     .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return Response.fromJson(response.body(), clazz);
+            T parsedResponse = Response.fromJson(response.body(), clazz);
+            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
+            if (parsedResponse == null) throw new Exception("");
+            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
+            else throw new APIErrorException(parsedResponse.getErrorData());
         }
 
         public <T extends Response> T sendAuthenticatedPostRequest(String token, Payload payload, Class<T> clazz) throws Exception {
@@ -77,7 +82,11 @@ public class APIEndpoints {
                     .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return Response.fromJson(response.body(), clazz);
+            T parsedResponse = Response.fromJson(response.body(), clazz);
+            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
+            if (parsedResponse == null) throw new Exception("");
+            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
+            else throw new APIErrorException(parsedResponse.getErrorData());
         }
 
         public <T extends Response> T sendPostRequest(Payload payload, Class<T> clazz) throws Exception {
@@ -89,7 +98,11 @@ public class APIEndpoints {
                     .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return Response.fromJson(response.body(), clazz);
+            T parsedResponse = Response.fromJson(response.body(), clazz);
+            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
+            if (parsedResponse == null) throw new Exception("");
+            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
+            else throw new APIErrorException(parsedResponse.getErrorData());
         }
 
         public <T extends Response> T uploadFile(String token, File file, Class<T> clazz) throws Exception {
@@ -110,7 +123,11 @@ public class APIEndpoints {
                     .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return Response.fromJson(response.body(), clazz);
+            T parsedResponse = Response.fromJson(response.body(), clazz);
+            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
+            if (parsedResponse == null) throw new Exception("");
+            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
+            else throw new APIErrorException(parsedResponse.getErrorData());
         }
     }
 }

@@ -18,7 +18,7 @@ import javax.imageio.ImageIO;
 
 public class CEProfileImageEditor extends JComponent {
     private BufferedImage currentImage;
-    private boolean isHovered = false;
+    private boolean isHovered = false, hasChanged = false;
     private final Image editPencilIcon;
 
     public CEProfileImageEditor(BufferedImage initialImage) {
@@ -51,6 +51,8 @@ public class CEProfileImageEditor extends JComponent {
             return null;
         }
     }
+
+    public boolean hasChanged() { return hasChanged; }
 
     @Override
     protected void paintComponent(Graphics graphics) {
@@ -90,8 +92,9 @@ public class CEProfileImageEditor extends JComponent {
     }
 
     private void openImageChooser() {
+        hasChanged = true;
         JFileChooser fileChooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Image Files", "jpg", "png", "jpeg", "gif");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Image Files", "jpg", "png", "jpeg");
         fileChooser.setFileFilter(filter);
 
         int result = fileChooser.showOpenDialog(this);
@@ -99,10 +102,9 @@ public class CEProfileImageEditor extends JComponent {
             File selectedFile = fileChooser.getSelectedFile();
             try {
                 BufferedImage newImage = ImageIO.read(selectedFile);
-                if (newImage != null) {
-                    currentImage = newImage;
-                    repaint();
-                }
+                if (newImage == null) return;
+                currentImage = newImage;
+                repaint();
             } catch (IOException exception) {
                 currentImage = new BufferedImage(980, 980, BufferedImage.TYPE_INT_RGB);
                 repaint();
@@ -112,13 +114,28 @@ public class CEProfileImageEditor extends JComponent {
 
     private Image createDefaultPencilIcon() {
         BufferedImage image = new BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics2D = image.createGraphics();
-        graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graphics2D.setColor(Color.WHITE);
-        graphics2D.setStroke(new BasicStroke(2));
-        graphics2D.drawLine(6, 18, 18, 6);
-        graphics2D.drawLine(14, 6, 18, 10);
-        graphics2D.dispose();
+        Graphics2D g2d = image.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int width = 5;
+        int height = 13;
+
+        g2d.translate(12, 12);
+        g2d.rotate(-Math.PI / 4);
+        g2d.translate(-12, -12);
+
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+        g2d.drawRect(9, 5, width, height);
+
+        int[] xPointsTip = {9, 9 + (width / 2), 9 + width};
+        int[] yPointsTip = {5, 0, 5};
+        g2d.drawPolygon(xPointsTip, yPointsTip, 3);
+
+        g2d.drawLine(9, 15, 9 + width, 15);
+
+        g2d.dispose();
         return image;
     }
 }

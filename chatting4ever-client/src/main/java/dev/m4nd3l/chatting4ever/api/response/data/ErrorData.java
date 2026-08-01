@@ -4,6 +4,7 @@ public class ErrorData {
     private String error;
     private boolean missingInternet;
 
+    public ErrorData() { }
     public ErrorData(String error, boolean missingInternet) {
         this.error = error;
         this.missingInternet = missingInternet;

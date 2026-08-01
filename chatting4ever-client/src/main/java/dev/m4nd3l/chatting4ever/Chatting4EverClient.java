@@ -5,10 +5,12 @@ import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.fonts.roboto.FlatRobotoFont;
 import dev.m4nd3l.chatting4ever.account.AccountData;
 import dev.m4nd3l.chatting4ever.api.APIEndpoints;
+import dev.m4nd3l.chatting4ever.api.APIErrorException;
 import dev.m4nd3l.chatting4ever.api.payloads.account.LoginPayload;
 import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
 import dev.m4nd3l.chatting4ever.components.icons.EyeIcon;
 import dev.m4nd3l.chatting4ever.pages.MainPage;
+import dev.m4nd3l.chatting4ever.pages.authentication.signup.PersonalizeAccountPage;
 import dev.m4nd3l.chatting4ever.pages.authentication.signup.SignupPage;
 import dev.m4nd3l.chatting4ever.utils.AppInfo;
 import dev.m4nd3l.chatting4ever.utils.Version;
@@ -43,47 +45,39 @@ public class Chatting4EverClient {
         EasySaves.init(settings);
 
         EventQueue.invokeLater(() -> {
-            if (Boolean.parseBoolean(EasySaves.getSetting("logged-in"))) {
-                try {
-                    String username = EasySaves.getSecureSetting("username");
-                    String email = EasySaves.getSecureSetting("email");
-                    String password = EasySaves.getSecureSetting("password");
-
-                    if ((username == null && email == null) || password == null) throw new Exception("Invalid credentials");
-                    if ((username == null && email.isEmpty()) || (email == null && username.isEmpty()) || password.isEmpty()) throw new Exception("Invalid credentials");
-
-                    String usernameOrEmail = username == null ? email : username;
-
-                    TokenAndInfoResponse data = APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password), TokenAndInfoResponse.class);
-                    AccountData.setAccount(
-                            new AccountData(
-                                    data.getToken(),
-                                    data.getUsername(),
-                                    data.getDisplayedName(),
-                                    data.getEmail(),
-                                    data.getProfileImageURL(),
-                                    data.getProfileDescription(),
-                                    data.getProfileNote(),
-                                    data.getCreatedAt(),
-                                    data.isPublicEmail()));
-                    Window = new Chatting4EverWindow(new MainPage());
-                    Window.show();
-                } catch (Exception _) {
-                    EasySaves.addSetting("logged-in", String.valueOf(false));
-                    Window = new Chatting4EverWindow(new SignupPage());
-                    Window.show();
-                    Window.error("An error occurred during auto-login");
-                }
-            } else {
-                Window = new Chatting4EverWindow(new SignupPage());
-                Window.show();
-            }
+            Window = new Chatting4EverWindow(new PersonalizeAccountPage());
+            Window.show();
+            //if (!Boolean.parseBoolean(EasySaves.getSetting("logged-in"))) {
+            //    Window = new Chatting4EverWindow(new SignupPage());
+            //    Window.show();
+            //    return;
+            //}
+            //try {
+            //    String username = EasySaves.getSecureSetting("username");
+            //    String email = EasySaves.getSecureSetting("email");
+            //    String password = EasySaves.getSecureSetting("password");
+//
+            //    if ((username == null && email == null) || password == null) throw new Exception("Invalid credentials");
+            //    if ((username == null && email.isEmpty()) || (email == null && username.isEmpty()) || password.isEmpty()) throw new Exception("Invalid credentials");
+//
+            //    String usernameOrEmail = username == null ? email : username;
+//
+            //    TokenAndInfoResponse data = APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password), TokenAndInfoResponse.class);
+            //    if (!data.isValidResponse()) throw new APIErrorException(data.getServerErrorData(), data.getErrorData());
+            //    AccountData.setAccount(data);
+            //    Window = new Chatting4EverWindow(new MainPage());
+            //    Window.show();
+            //} catch (APIErrorException apiError) {
+            //    EasySaves.addSetting("logged-in", String.valueOf(false));
+            //    Window = new Chatting4EverWindow(new SignupPage());
+            //    Window.show();
+            //    Window.error("An error occurred during auto-login:\n" + apiError.getErrorCause());
+            //} catch (Exception e) {
+            //    EasySaves.addSetting("logged-in", String.valueOf(false));
+            //    Window = new Chatting4EverWindow(new SignupPage());
+            //    Window.show();
+            //    Window.error("An error occurred during auto-login:\n" + e.getClass().getSimpleName());
+            //}
         });
-    }
-
-    private boolean isNullOrEmpty(String... params) {
-        if (params == null) return false;
-        for (String param : params) if (isNullOrEmpty(param)) return true;
-        return false;
     }
 }

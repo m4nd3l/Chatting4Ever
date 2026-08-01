@@ -9,6 +9,7 @@ import dev.m4nd3l.chatting4ever.Chatting4EverClient;
 import dev.m4nd3l.chatting4ever.api.response.data.ErrorData;
 import dev.m4nd3l.chatting4ever.api.response.data.ServerErrorData;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -19,6 +20,8 @@ public class Response {
     @JsonIgnore private ServerErrorData serverErrorData;
     @JsonProperty("success") private boolean success = false;
 
+    public Response() { }
+
     public ErrorData getErrorData() { return errorData; }
     public ServerErrorData getServerErrorData() { return serverErrorData; }
     public boolean wasSuccessful() { return success; }
@@ -28,7 +31,8 @@ public class Response {
     public Response setServerErrorData(ServerErrorData serverErrorData) { this.serverErrorData = serverErrorData; return this; }
     public Response setSuccess(boolean success) { this.success = success; return this; }
 
-    public boolean isValidResponse() { return getErrorData() != null && !isServerError(); }
+    public boolean isValidResponse() { return getErrorData() == null && !isServerError(); }
+    public String getErrorCause() { return getErrorData() != null ? getErrorData().getError() : (getServerErrorData() != null ? getServerErrorData().getMessage() : "Unknown"); }
 
     public static <T extends Response> T fromJson(String json, Class<T> clazz) {
         try {
@@ -48,9 +52,13 @@ public class Response {
                     response.setErrorData(new ErrorData((String) map.get("error"), false));
             } catch (Exception _) { }
             return response;
-        } catch (Exception _) {
+        } catch (Exception exception) {
             Chatting4EverClient.Window.error("Couldn't deserialize server response to " + clazz.getSimpleName());
-            return null;
+            try {
+                T instance = clazz.getConstructor().newInstance();
+                instance.setErrorData(new ErrorData("Couldn't deserialize server response to " + clazz.getSimpleName(), exception instanceof IOException));
+                return instance;
+            } catch (Exception _) { return null; }
         }
     }
 }

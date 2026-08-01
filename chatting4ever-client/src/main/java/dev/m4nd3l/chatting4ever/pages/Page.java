@@ -2,6 +2,7 @@ package dev.m4nd3l.chatting4ever.pages;
 
 import dev.m4nd3l.chatting4ever.Chatting4EverClient;
 import dev.m4nd3l.chatting4ever.api.APIEndpoints;
+import dev.m4nd3l.chatting4ever.api.APIErrorException;
 import dev.m4nd3l.chatting4ever.api.payloads.ChangeEmailVisibility;
 import dev.m4nd3l.chatting4ever.api.payloads.Payload;
 import dev.m4nd3l.chatting4ever.api.payloads.account.*;
@@ -16,6 +17,7 @@ import javax.swing.event.AncestorListener;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 public interface Page {
     default void beforeActivating() { }
@@ -69,17 +71,20 @@ public interface Page {
     default TokenAndInfoResponse register(String username, String displayedName, String email, String password) {
         try { return APIEndpoints.register.sendPostRequest(new RegisterPayload(username, displayedName, email, password), TokenAndInfoResponse.class); }
         catch (IOException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
         catch (Exception exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
     default TokenAndInfoResponse login(String usernameOrEmail, String password) {
         try { return APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password), TokenAndInfoResponse.class); }
         catch (IOException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
         catch (Exception exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
     default ErrorData changeDisplayedName(String token, String newDisplayedName) { return postRequest(APIEndpoints.changeDisplayedName, token, new ChangeDisplayedNamePayload(newDisplayedName)); }
     default TokenResponse changeUsername(String token, String newUsername) {
         try { return APIEndpoints.changeUsername.sendAuthenticatedPostRequest(token, new ChangeUsernameNamePayload(newUsername), TokenResponse.class); }
         catch (IOException exception) { return (TokenResponse) new TokenResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (TokenResponse) new TokenResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
         catch (Exception exception) { return (TokenResponse) new TokenResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
     default ErrorData changeEmail(String token, String newEmail) { return postRequest(APIEndpoints.changeEmail, token, new ChangeEmailPayload(newEmail)); }
@@ -96,34 +101,38 @@ public interface Page {
     default UploadProfileImageResponse uploadProfileImage(String token, File image) {
         try { return APIEndpoints.uploadProfileImage.uploadFile(token, image, UploadProfileImageResponse.class); }
         catch (IOException exception) { return (UploadProfileImageResponse) new UploadProfileImageResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (UploadProfileImageResponse) new UploadProfileImageResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
         catch (Exception exception) { return (UploadProfileImageResponse) new UploadProfileImageResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
 
     default boolean isUsernameTaken(String username) {
         try { return APIEndpoints.isUsernameTaken.sendPostRequest(new IsUsernameTakenPayload(username), UsernameTakenResponse.class).isUsernameTaken(); }
-        catch (Exception exception) { return false; }
+        catch (Exception _) { return false; }
     }
 
     default boolean isEmailTaken(String email) {
         try { return APIEndpoints.isEmailTaken.sendPostRequest(new IsEmailTakenPayload(email), EmailTakenResponse.class).isEmailTaken(); }
-        catch (Exception exception) { return false; }
+        catch (Exception _) { return false; }
     }
 
     private ErrorData postRequest(APIEndpoints.APIEndpoint endpoint, Payload payload) {
         try { return endpoint.sendPostRequest(payload, SuccessResponse.class).getErrorData(); }
         catch (IOException exception) { return new ErrorData("No internet connection", true); }
+        catch (APIErrorException exception) { return new ErrorData(exception.getErrorCause(), false); }
         catch (Exception exception) { return new ErrorData("Unknown error", false); }
     }
 
     private ErrorData postRequest(APIEndpoints.APIEndpoint endpoint, String token, Payload payload) {
         try { return endpoint.sendAuthenticatedPostRequest(token, payload, SuccessResponse.class).getErrorData(); }
         catch (IOException exception) { return new ErrorData("No internet connection", true); }
+        catch (APIErrorException exception) { return new ErrorData(exception.getErrorCause(), false); }
         catch (Exception exception) { return new ErrorData("Unknown error", false); }
     }
 
     private ErrorData getRequest(APIEndpoints.APIEndpoint endpoint, String token) {
         try { return endpoint.sendAuthenticatedGetRequest(token, SuccessResponse.class).getErrorData(); }
         catch (IOException exception) { return new ErrorData("No internet connection", true); }
+        catch (APIErrorException exception) { return new ErrorData(exception.getErrorCause(), false); }
         catch (Exception exception) { return new ErrorData("Unknown error", false); }
     }
 
@@ -133,4 +142,6 @@ public interface Page {
         for (String param : params) if (isNullOrEmpty(param)) return true;
         return false;
     }
+
+    default InputStream getResource(String pathNoSlash) { return getClass().getResourceAsStream("/" + pathNoSlash); }
 }

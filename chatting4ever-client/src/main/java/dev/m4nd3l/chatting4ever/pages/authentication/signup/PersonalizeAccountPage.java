@@ -6,9 +6,7 @@ import dev.m4nd3l.chatting4ever.account.AccountData;
 import dev.m4nd3l.chatting4ever.api.APIEndpoints;
 import dev.m4nd3l.chatting4ever.api.response.UploadProfileImageResponse;
 import dev.m4nd3l.chatting4ever.api.response.data.ErrorData;
-import dev.m4nd3l.chatting4ever.components.CELabel;
-import dev.m4nd3l.chatting4ever.components.CEProfileImageEditor;
-import dev.m4nd3l.chatting4ever.components.CETextField;
+import dev.m4nd3l.chatting4ever.components.*;
 import dev.m4nd3l.chatting4ever.pages.MainPage;
 import dev.m4nd3l.chatting4ever.pages.Page;
 
@@ -25,9 +23,9 @@ public class PersonalizeAccountPage extends JPanel implements Page {
 
     private CEProfileImageEditor imageEditor;
     private CETextField displayedNameTextField;
-    private CETextField descriptionTextField;
+    private CEMultilineTextField descriptionTextField;
     private JCheckBox publicEmailCheckbox;
-    private JButton nextButton;
+    private CEButton nextButton;
 
     public PersonalizeAccountPage() { init(); }
 
@@ -40,13 +38,21 @@ public class PersonalizeAccountPage extends JPanel implements Page {
         titleLabel.setFontStyle(Font.BOLD);
 
         try { imageEditor = new CEProfileImageEditor(ImageIO.read(new URI(AccountData.get().getProfileImageURL()).toURL())); }
-        catch (Exception _) { imageEditor = new CEProfileImageEditor(new BufferedImage(980, 980, BufferedImage.TYPE_INT_RGB)); }
-        displayedNameTextField = new CETextField(AccountData.get().getUsername(), "^[^\\x21\\x23-\\x25\\x2E\\x2F\\x3A-\\x3F\\x5B-\\x5E\\x60\\x7B-\\x7E\\n\\r\\t]+$");
+        catch (Exception _) {
+            try { imageEditor = new CEProfileImageEditor(ImageIO.read(getResource("images/profile-images/default.png"))); }
+            catch (Exception _) { imageEditor = new CEProfileImageEditor(new BufferedImage(980, 980, BufferedImage.TYPE_INT_RGB)); }
+        }
+        displayedNameTextField = new CETextField()
+                .setPlaceholder(AccountData.get().getUsername())
+                .setAcceptanceRegex("^[^\\x21\\x23-\\x25\\x2E\\x2F\\x3A-\\x3F\\x5B-\\x5E\\x60\\x7B-\\x7E\\n\\r\\t]+$");
         displayedNameTextField.setText(displayedNameTextField.getPlaceholder());
-        descriptionTextField = new CETextField("Hey there! My name is " + displayedNameTextField.getPlaceholder(), "^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$");
+        descriptionTextField = new CEMultilineTextField()
+                .setPlaceholder("Hey there! My name is " + displayedNameTextField.getPlaceholder())
+                .setAcceptanceRegex("^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$")
+                .setMaxChars(100)
+                .setMaxLines(4);
         publicEmailCheckbox = new JCheckBox("Public email", false);
-        nextButton = new JButton("Next");
-        nextButton.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #007aff; foreground: #ffffff");
+        nextButton = new CEButton("Next");
 
         displayedNameTextField.focusOnEnterIfCondition(descriptionTextField, displayedName -> !isNullOrEmpty(displayedName),
                 _ -> displayedNameTextField.showErrorBubble("Cannot use an empty displayed name"));
@@ -59,8 +65,8 @@ public class PersonalizeAccountPage extends JPanel implements Page {
 
         Dimension fixedSize = new Dimension(300, 35);
         displayedNameTextField.setPreferredSize(fixedSize);
-        descriptionTextField.setPreferredSize(fixedSize);
-        nextButton.setPreferredSize(new Dimension(300, 40));
+        descriptionTextField.setPreferredSize(descriptionTextField.getPreferredSize());
+        nextButton.setPreferredSize(new Dimension(100, 40));
 
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.fill = GridBagConstraints.NONE;
@@ -129,14 +135,21 @@ public class PersonalizeAccountPage extends JPanel implements Page {
 
         if (!displayedName.equals(AccountData.get().getDisplayedName()))
             changeDisplayedName = changeDisplayedName(token, displayedName);
+
         if (!isNullOrEmpty(description) || !description.equals(AccountData.get().getProfileDescription()))
             changeProfileDescription = changeProfileDescription(token, description);
+
         if (publicEmailCheckbox.isSelected())
             changeEmailVisibility = changeEmailVisibility(token, true);
 
         if (changeDisplayedName != null) showError( "An error occurred while changing displayed name:\n" + changeDisplayedName.getError());
         if (changeProfileDescription != null) showError("An error occurred while changing profile description:\n" + changeProfileDescription.getError());
         if (changeEmailVisibility != null) showError("An error occurred while changing email visibility:\n" + changeEmailVisibility.getError());
+
+        if (!imageEditor.hasChanged()) {
+            changePage(new MainPage());
+            return;
+        }
 
         UploadProfileImageResponse uploadProfileImageResponse = uploadProfileImage(token, imageEditor.saveToTemp());
         if (uploadProfileImageResponse.getErrorData() != null) {

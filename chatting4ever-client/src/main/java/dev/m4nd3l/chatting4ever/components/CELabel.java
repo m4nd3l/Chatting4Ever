@@ -6,11 +6,7 @@ public class CELabel extends JLabel implements FontGetter {
     private String fontName = defaultFontName;
 
     public CELabel() { super(); resetFontKeepingFontName(); }
-    public CELabel(Icon image) { super(image); resetFontKeepingFontName(); }
     public CELabel(String text) { super(text); resetFontKeepingFontName(); }
-    public CELabel(Icon image, int horizontalAlignment) { super(image, horizontalAlignment); resetFontKeepingFontName(); }
-    public CELabel(String text, int horizontalAlignment) { super(text, horizontalAlignment); resetFontKeepingFontName(); }
-    public CELabel(String text, Icon icon, int horizontalAlignment) { super(text, icon, horizontalAlignment); resetFontKeepingFontName(); }
 
     public String getFontName() { return fontName; }
     public int getFontSize() { return getFont() != null ? getFont().getSize() : 12; }
