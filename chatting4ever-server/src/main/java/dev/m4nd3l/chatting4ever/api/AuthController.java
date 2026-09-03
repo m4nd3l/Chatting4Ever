@@ -1,8 +1,10 @@
 package dev.m4nd3l.chatting4ever.api;
 
+import dev.m4nd3l.chatting4ever.database.model.Pending2FALoginCode;
 import dev.m4nd3l.chatting4ever.database.model.PendingEmailVerificationCode;
 import dev.m4nd3l.chatting4ever.database.model.PendingForgotPasswordCode;
 import dev.m4nd3l.chatting4ever.database.model.User;
+import dev.m4nd3l.chatting4ever.database.service.Pending2FALoginCodeService;
 import dev.m4nd3l.chatting4ever.database.service.PendingEmailVerificationCodeService;
 import dev.m4nd3l.chatting4ever.database.service.PendingForgotPasswordCodeService;
 import dev.m4nd3l.chatting4ever.database.service.UserService;
@@ -15,39 +17,40 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    private static final Set<Character> bannedUsernameChars = Set.of('@', ' ', '!', '#', '$', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|',
-            '\\', ':', ';', '"', '\'', '<', '>', ',', '?', '/', '~', '`', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ',
-            'ò', 'ó', 'ô', 'õ', 'ö', 'ø', 'ù', 'ú', 'û', 'ü', 'ý', 'ÿ', 'À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ñ', 'Ò',
-            'Ó', 'Ô', 'Õ', 'Ö', 'Ø', 'Ù', 'Ú', 'Û', 'Ü', 'Ý', '\n');
-    private static final Set<Character> bannedDisplayedNameChars = Set.of('!', '#', '$', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\',
-            ':', ';', '"', '\'', '<', '>', '?', '/', '`', '~', '\n', '\r', '\t');
-    private static final Pattern passwordPattern = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$");
+    private static final Pattern usernamePattern = Pattern.compile("^[a-zA-Z0-9_.-]+$");
     private static final Pattern emailPattern = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern displayedNamePattern = Pattern.compile("^[\\p{L}\\p{N}\\p{M} _.,!?-]+$");
     private static final Pattern descriptionPattern = Pattern.compile("^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$");
+    private static final Pattern passwordPattern = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$");
     private final UserService userService;
     private final PendingEmailVerificationCodeService emailVerificationCodeService;
     private final PendingForgotPasswordCodeService forgotPasswordCodeService;
+    private final Pending2FALoginCodeService twoFALoginCodeService;
     private final EmailSenderService emailSenderService;
 
-    public AuthController(UserService userService, PendingEmailVerificationCodeService emailVerificationCodeService, PendingForgotPasswordCodeService forgotPasswordCode, EmailSenderService emailSenderService) {
+    public AuthController(UserService userService, PendingEmailVerificationCodeService emailVerificationCodeService,
+                          PendingForgotPasswordCodeService forgotPasswordCode, EmailSenderService emailSenderService, Pending2FALoginCodeService twoFALoginCodeService) {
         this.userService = userService;
         this.emailVerificationCodeService = emailVerificationCodeService;
         this.emailSenderService = emailSenderService;
         this.forgotPasswordCodeService = forgotPasswordCode;
+        this.twoFALoginCodeService = twoFALoginCodeService;
     }
 
+    // region AUTHENTICATION
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, String> request) {
         String username = request.get("username");
         String displayedName = request.get("displayed-name");
         String email = request.get("email");
         String password = request.get("password");
+        boolean handOutUUID = Boolean.parseBoolean(request.get("hand-out-token"));
 
         if (isSomeNull(username, displayedName, email, password)) return ResponseEntity.status(401).body(Map.of("error", "Missing some parameters", "success", false));
 
@@ -68,8 +71,16 @@ public class AuthController {
                 .setPassword(password)
                 .setEmail(email)
                 .setVerifiedEmail(false)
+                .set2FA(false)
                 .setProfileDescription("")
                 .setProfileNote("");
+
+        UUID uuid = null;
+        if (handOutUUID) {
+            uuid = UUID.randomUUID();
+            user.addAutologinUUID(uuid);
+        }
+
         userService.save(user);
 
         sendVerificationEmail(user);
@@ -81,12 +92,15 @@ public class AuthController {
                 "username", user.getUsername(),
                 "profile-image-url", user.getProfileImageURL(),
                 "displayed-name", user.getDisplayedName(),
-                "online", user.isOnline(),
+                "online", String.valueOf(user.isOnline()),
                 "profile-description", user.getProfileDescription(),
                 "profile-note", user.getProfileNote(),
                 "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                "public-email", user.isPublicEmail(),
-                "email", user.getEmail()));
+                "public-email", String.valueOf(user.isPublicEmail()),
+                "verified-email", user.isEmailVerified(),
+                "email", user.getEmail(),
+                "uses-2fa", user.uses2FA(),
+                "uuid", handOutUUID ? uuid : ""));
     }
 
     @PostMapping("/login")
@@ -94,11 +108,25 @@ public class AuthController {
         String username = request.get("username");
         String email = request.get("email");
         String password = request.get("password");
+        boolean handOutUUID = Boolean.parseBoolean(request.get("hand-out-token"));
 
         if (isSomeNull(password) || (username == null && email == null)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
         User user = username == null ? userService.getUserByEmail(email) : userService.getUserByUsername(username);
         if (user == null || !user.checkPassword(password)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        if (user.uses2FA()) {
+            sendLoginCode(user);
+            return ResponseEntity.ok(Map.of("success", true));
+        }
+
+        UUID uuid = null;
+        if (handOutUUID) {
+            uuid = UUID.randomUUID();
+            user.addAutologinUUID(uuid);
+        }
+
+        userService.save(user);
 
         String token = JWTTokenProvider.generateToken(user.getUsername());
         return ResponseEntity.ok(LongMapBuilder.of(
@@ -112,30 +140,123 @@ public class AuthController {
                 "profile-note", user.getProfileNote(),
                 "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 "public-email", String.valueOf(user.isPublicEmail()),
-                "email", user.getEmail()));
+                "verified-email", user.isEmailVerified(),
+                "email", user.getEmail(),
+                "uses-2fa", user.uses2FA(),
+                "uuid", handOutUUID ? uuid : ""));
     }
 
-    @PostMapping("/change-profile-image")
-    public ResponseEntity<Map<String, Object>> changeProfileImageURL(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
-        String newProfileImageURL = request.get("new-profile-image-url");
+    @PostMapping("/get-data")
+    public ResponseEntity<Map<String, Object>> getData(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String email = request.get("email");
+        String password = request.get("password");
+        String code = request.get("code");
+        boolean handOutUUID = Boolean.parseBoolean(request.get("hand-out-token"));
 
-        if (isSomeNull(token, newProfileImageURL)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+        if (isSomeNull(password, code) || (username == null && email == null)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials or code", "success", false));
 
-        if (!isUsernameValid(newProfileImageURL)) return ResponseEntity.status(400).body(Map.of("error", "Invalid username", "success", false));
+        User user = username == null ? userService.getUserByEmail(email) : userService.getUserByUsername(username);
+        if (user == null || !user.checkPassword(password)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        if (!user.uses2FA()) return ResponseEntity.status(401).body(Map.of("error", user.getUsername() + " doesn't uses 2FA", "success", false));
+
+        Pending2FALoginCode loginCode;
+        try { loginCode = twoFALoginCodeService.get2FALoginCodeByCode(Integer.parseInt(code)); }
+        catch (Exception ignored) { return ResponseEntity.status(401).body(Map.of("error", "Invalid code", "success", false)); }
+        if (loginCode == null || loginCode.hasExpired() || !loginCode.verify(user))
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid code", "success", false));
+
+        twoFALoginCodeService.delete(twoFALoginCodeService.get2FALoginCodeByUserID(user.getID()));
+
+        UUID uuid = null;
+        if (handOutUUID) {
+            uuid = UUID.randomUUID();
+            user.addAutologinUUID(uuid);
+        }
+
+        userService.save(user);
+
+        String token = JWTTokenProvider.generateToken(user.getUsername());
+        return ResponseEntity.ok(LongMapBuilder.of(
+                "success", true,
+                "token", token,
+                "username", user.getUsername(),
+                "profile-image-url", user.getProfileImageURL(),
+                "displayed-name", user.getDisplayedName(),
+                "online", String.valueOf(user.isOnline()),
+                "profile-description", user.getProfileDescription(),
+                "profile-note", user.getProfileNote(),
+                "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                "public-email", String.valueOf(user.isPublicEmail()),
+                "verified-email", user.isEmailVerified(),
+                "email", user.getEmail(),
+                "uses-2fa", user.uses2FA(),
+                "uuid", handOutUUID ? uuid : ""));
+    }
+
+    @PostMapping("/autologin")
+    public ResponseEntity<Map<String, Object>> autologin(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String email = request.get("email");
+        String uuidString = request.get("uuid");
+
+        if (isSomeNull(uuidString) || (username == null && email == null)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        UUID uuid = UUID.fromString(uuidString);
+        User user = username == null ? userService.getUserByEmail(email) : userService.getUserByUsername(username);
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        if (!user.isUUIDValid(uuid)) return ResponseEntity.status(401).body(Map.of("error", "Invalid UUID", "success", false));
+
+        UUID newUUID = UUID.randomUUID();
+        user.removeAutologinUUID(uuid);
+        user.addAutologinUUID(newUUID);
+
+        userService.save(user);
+
+        String token = JWTTokenProvider.generateToken(user.getUsername());
+        return ResponseEntity.ok(LongMapBuilder.of(
+                "success", true,
+                "token", token,
+                "username", user.getUsername(),
+                "profile-image-url", user.getProfileImageURL(),
+                "displayed-name", user.getDisplayedName(),
+                "online", String.valueOf(user.isOnline()),
+                "profile-description", user.getProfileDescription(),
+                "profile-note", user.getProfileNote(),
+                "created-at", user.getCreationDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                "public-email", String.valueOf(user.isPublicEmail()),
+                "verified-email", user.isEmailVerified(),
+                "email", user.getEmail(),
+                "uses-2fa", user.uses2FA(),
+                "uuid", newUUID));
+    }
+    // endregion AUTHENTICATION
+
+    // region CHANGE
+    @PostMapping("/change-2fa")
+    public ResponseEntity<Map<String, Object>> chang2FA(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
+        boolean twoFA = Boolean.parseBoolean(request.get("2fa"));
+
+        if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
         String username = JWTTokenProvider.validateTokenAndGetUsername(token);
         if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
         User user = userService.getUserByUsername(username);
-        if (user == null) return ResponseEntity.status(401).body(Map .of("error", "Invalid credentials", "success", false));
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
-        user.setProfileImageURL(newProfileImageURL);
-        userService.save(user);
+        if (user.isEmailVerified()) {
+            user.set2FA(true);
+            userService.save(user);
+        } else return ResponseEntity.status(401).body(Map.of("error", "Unverified email", "success", false));
 
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+
     @PostMapping("/change-username")
-    public ResponseEntity<Map<String, Object>> changeUsername(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> changeUsername(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String newUsername = request.get("new-username");
 
         if (isSomeNull(token, newUsername)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
@@ -154,7 +275,7 @@ public class AuthController {
     }
 
     @PostMapping("/change-displayed-name")
-    public ResponseEntity<Map<String, Object>> changeDisplayedName(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> changeDisplayedName(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String newDisplayedName = request.get("new-displayed-name");
 
         if (isSomeNull(token, newDisplayedName)) return ResponseEntity.status(401).body(Map.of("error" , "Invalid credentials", "success", false));
@@ -172,7 +293,7 @@ public class AuthController {
     }
 
     @PostMapping("/change-email")
-    public ResponseEntity<Map<String, Object>> changeEmail(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> changeEmail(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String newEmail = request.get("new-email");
 
         if (isSomeNull(token, newEmail)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
@@ -194,8 +315,27 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @PostMapping("/change-email-visibility")
+    public ResponseEntity<Map<String, Object>> changeEmailVisibility(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
+        boolean newEmailVisibility = Boolean.parseBoolean(request.get("new-email-visibility"));
+
+        if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+
+        String username = JWTTokenProvider.validateTokenAndGetUsername(token);
+        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+        User user = userService.getUserByUsername(username);
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        if (user.isEmailVerified()) {
+            user.setPublicEmail(newEmailVisibility);
+            userService.save(user);
+        } else return ResponseEntity.status(401).body(Map.of("error", "Unverified email", "success", false));
+
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String oldPassword = request.get("old-password");
         String newPassword = request.get("new-password");
 
@@ -213,17 +353,34 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    @PostMapping("/change-profile-description")
-    public ResponseEntity<Map<String, Object>> changeProfileDescription(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
-        String newProfileDescription = request.get("new-description");
+    @PostMapping("/change-profile-image")
+    public ResponseEntity<Map<String, Object>> changeProfileImageURL(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
+        String newProfileImageURL = request.get("new-profile-image-url");
 
-        if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+        if (isSomeNull(token, newProfileImageURL)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
         String username = JWTTokenProvider.validateTokenAndGetUsername(token);
-        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
         User user = userService.getUserByUsername(username);
-        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
-        if (!descriptionPattern.matcher(newProfileDescription).matches()) return ResponseEntity.status(401).body(Map.of("error", "Invalid description"));
+        if (user == null) return ResponseEntity.status(401).body(Map .of("error", "Invalid credentials", "success", false));
+
+        user.setProfileImageURL(newProfileImageURL);
+        userService.save(user);
+
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/change-profile-description")
+    public ResponseEntity<Map<String, Object>> changeProfileDescription(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
+        String newProfileDescription = request.get("new-description");
+
+        if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+
+        String username = JWTTokenProvider.validateTokenAndGetUsername(token);
+        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+        User user = userService.getUserByUsername(username);
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
+        if (!descriptionPattern.matcher(newProfileDescription).matches()) return ResponseEntity.status(401).body(Map.of("error", "Invalid description", "success", false));
 
         user.setProfileDescription(newProfileDescription == null ? "" : newProfileDescription);
         userService.save(user);
@@ -231,25 +388,8 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    @PostMapping("/change-email-visibility")
-    public ResponseEntity<Map<String, Object>> changeEmailVisibility(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
-        boolean newEmailVisibility = Boolean.parseBoolean(request.get("new-email-visibility"));
-
-        if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
-
-        String username = JWTTokenProvider.validateTokenAndGetUsername(token);
-        if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
-        User user = userService.getUserByUsername(username);
-        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
-
-        user.setPublicEmail(newEmailVisibility);
-        userService.save(user);
-
-        return ResponseEntity.ok(Map.of("success", true));
-    }
-
     @PostMapping("/change-profile-note")
-    public ResponseEntity<Map<String, Object>> changeProfileNote(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> changeProfileNote(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String newProfileNote = request.get("new-note");
 
         if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
@@ -264,9 +404,11 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of("success", true));
     }
+    // endregion CHANGE
 
+    // region CODES
     @PostMapping("/verify-email")
-    public ResponseEntity<Map<String, Object>> verifyEmail(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> verifyEmail(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String verificationCodeNumber = request.get("verification-code");
 
         if (isSomeNull(token, verificationCodeNumber)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
@@ -279,6 +421,7 @@ public class AuthController {
         PendingEmailVerificationCode verificationCode;
         try { verificationCode = emailVerificationCodeService.getVerificationCodeByCode(Integer.parseInt(verificationCodeNumber)); }
         catch (Exception ignored) { return ResponseEntity.status(401).body(Map.of("error", "Invalid code", "success", false)); }
+
         if (verificationCode == null || verificationCode.hasExpired() || !verificationCode.verify(user))
             return ResponseEntity.status(401).body(Map.of("error", "Invalid code", "success", false));
 
@@ -291,14 +434,14 @@ public class AuthController {
     }
 
     @GetMapping("/resend-verification-email")
-    public ResponseEntity<Map<String, Object>> resendVerificationEmail(@RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> resendVerificationEmail(@RequestHeader("Authorization") String token) {
         if (isSomeNull(token)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
 
         String username = JWTTokenProvider.validateTokenAndGetUsername(token);
         if (username == null || username.isEmpty()) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
         User user = userService.getUserByUsername(username);
         if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
-        if (user.isVerifiedEmail()) return ResponseEntity.status(400).body(Map.of("error", "Already verified", "success", false));
+        if (user.isEmailVerified()) return ResponseEntity.status(400).body(Map.of("error", "Already verified", "success", false));
 
         sendVerificationEmail(user);
 
@@ -347,9 +490,12 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of("success", true));
     }
+    // endregion CODES
 
+    // region DANGER
     @PostMapping("/delete")
-    public ResponseEntity<Map<String, Object>> delete(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> delete(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
+        // TODO : ADD EMAIL CODE TO DELETE ACCOUNT
         String password = request.get("password");
 
         if (isSomeNull(token, password)) return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials", "success", false));
@@ -361,6 +507,41 @@ public class AuthController {
         userService.delete(user);
 
         return ResponseEntity.ok(Map.of("success", true));
+    }
+    // endregion DANGER
+
+    private void sendLoginCode(User user) {
+        Pending2FALoginCode loginCode = new Pending2FALoginCode()
+                .generateID(twoFALoginCodeService)
+                .setUserID(user.getID())
+                .setEmail(user.getEmail())
+                .setExpirationDate(LocalDateTime.now().plusMinutes(30));
+        if (twoFALoginCodeService.containsEmail(user.getEmail()))
+            twoFALoginCodeService.deleteAllByEmail(user.getEmail());
+
+        twoFALoginCodeService.save(loginCode);
+
+        String subject = "Chatting4Ever - Login code";
+
+        String htmlBody = "<html>" +
+                "<body style='font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333;'>" +
+                "  <div style='max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);'>" +
+                "    <h2 style='color: #4A90E2; text-align: center; margin-bottom: 20px;'>Someone is trying to login into your account</h2>" +
+                "    <p>Hi <strong>" + user.getDisplayedName() + "</strong>,</p>" +
+                "    <p>Someone tried to login into your account, since you have 2FA activated, you need a code to login:</p>" +
+                "    <div style='text-align: center; margin: 30px 0;'>" +
+                "      <span style='background-color: #4A90E2; color: white; padding: 12px 35px; font-size: 24px; font-weight: bold; letter-spacing: 4px; border-radius: 5px; display: inline-block;'>" +
+                loginCode.getCode() +
+                "      </span>" +
+                "    </div>" +
+                "    <p>Expiration date: " + loginCode.getExpirationDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) + "</p>" +
+                "    <p style='font-size: 12px; color: #777; text-align: center; margin-top: 30px;'>If you didn't request this email you can ignore it.</p>" +
+                "  </div>" +
+                "</body>" +
+                "</html>";
+
+        try { emailSenderService.sendHtmlEmail(user.getEmail(), subject, htmlBody); }
+        catch (Exception ignore) { }
     }
 
     private void sendVerificationEmail(User user) {
@@ -433,14 +614,12 @@ public class AuthController {
 
     private boolean isDisplayedNameValid(String displayedName) {
         if (displayedName == null) return false;
-        for (char character : displayedName.toCharArray()) if (bannedDisplayedNameChars.contains(character)) return false;
-        return true;
+        return displayedNamePattern.matcher(displayedName).matches();
     }
 
     private boolean isUsernameValid(String username) {
         if (username == null) return false;
-        for (char character : username.toCharArray()) if (bannedUsernameChars.contains(character)) return false;
-        return true;
+        return usernamePattern.matcher(username).matches();
     }
 
     private boolean isPasswordValid(String password) {

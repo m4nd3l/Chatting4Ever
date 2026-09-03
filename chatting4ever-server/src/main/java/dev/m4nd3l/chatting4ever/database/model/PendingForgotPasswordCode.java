@@ -1,6 +1,5 @@
 package dev.m4nd3l.chatting4ever.database.model;
 
-import dev.m4nd3l.chatting4ever.database.service.PendingEmailVerificationCodeService;
 import dev.m4nd3l.chatting4ever.database.service.PendingForgotPasswordCodeService;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;

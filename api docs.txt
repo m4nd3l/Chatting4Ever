@@ -3,10 +3,13 @@ Chatting4Ever API Docs
 AUTH:
  - http://localhost:8080/api/auth/register: POST
     - Takes: username, displayed-name, email, password
-    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, token, success
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa
  - http://localhost:8080/api/auth/login: POST
     - Takes: username/email, password
-    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, token, success
+    - Returns: (username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa) OR (depending on 2FA) success
+- http://localhost:8080/api/auth/get-data: POST
+    - Takes: username/email, password, code
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa
  - http://localhost:8080/api/auth/change-username: POST
     - Takes: token (header), new-username
     - Returns: token, success
@@ -55,12 +58,24 @@ INFO:
 SEARCH:
  - http://localhost:8080/api/search/info: POST
     - Takes: token (header), username
-    - Returns: username, displayed-name, online, profile-description, profile-note, created-at, public-email, email, success
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, success
  - http://localhost:8080/api/search/search: POST
     - Takes: token (header), query, [optional: limit, start, count]
-    - Returns: users -> (username, displayed-name, online, profile-description, profile-note, created-at, public-email, email), success
+    - Returns: users -> (username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email), success
 
 MEDIA:
- - http://localhost:8080/api/media/upload-profile-image: POST
+ - http:/   /localhost:8080/api/media/upload-profile-image: POST
     - Takes: token (header), file (param)
     - Returns: url, success
+
+    * username
+    * displayed-name
+    * online
+    * profile-description
+    * profile-note
+    * created-at
+    * public-email
+    * email
+    * token
+    * success
+    * uses-2fa

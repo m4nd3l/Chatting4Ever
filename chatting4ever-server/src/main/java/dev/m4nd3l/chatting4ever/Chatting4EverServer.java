@@ -1,7 +1,6 @@
 package dev.m4nd3l.chatting4ever;
 
-import dev.m4nd3l.chatting4ever.database.model.PendingEmailVerificationCode;
-import dev.m4nd3l.chatting4ever.database.model.User;
+import dev.m4nd3l.chatting4ever.database.model.*;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,8 +17,7 @@ import java.nio.file.StandardCopyOption;
 
 @SpringBootApplication
 @EnableScheduling
-@EntityScan(basePackageClasses = { User.class, PendingEmailVerificationCode.class })
-@ComponentScan("dev.m4nd3l.chatting4ever")
+@EntityScan(basePackageClasses = { User.class, PendingEmailVerificationCode.class, PendingForgotPasswordCode.class, Pending2FALoginCode.class, PendingMessage.class })
 @EnableJpaRepositories(basePackages = "dev.m4nd3l.chatting4ever.database.repository")
 public class Chatting4EverServer {
     public static void main(String[] args) { SpringApplication.run(Chatting4EverServer.class, args); }

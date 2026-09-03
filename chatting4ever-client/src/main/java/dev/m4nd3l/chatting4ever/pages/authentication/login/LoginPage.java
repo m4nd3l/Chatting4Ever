@@ -1,12 +1,10 @@
-package dev.m4nd3l.chatting4ever.pages.authentication;
+package dev.m4nd3l.chatting4ever.pages.authentication.login;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import dev.m4nd3l.chatting4ever.account.AccountData;
-import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
-import dev.m4nd3l.chatting4ever.components.CEButton;
-import dev.m4nd3l.chatting4ever.components.CELabel;
-import dev.m4nd3l.chatting4ever.components.CEPasswordField;
-import dev.m4nd3l.chatting4ever.components.CETextField;
+import dev.m4nd3l.chatting4ever.api.payloads.account.LoginPayload;
+import dev.m4nd3l.chatting4ever.api.response.auth.AccountAuthResponse;
+import dev.m4nd3l.chatting4ever.components.*;
 import dev.m4nd3l.chatting4ever.pages.MainPage;
 import dev.m4nd3l.chatting4ever.pages.Page;
 import dev.m4nd3l.chatting4ever.pages.authentication.signup.SignupPage;
@@ -22,7 +20,8 @@ public class LoginPage extends JPanel implements Page {
     private CETextField usernameOrEmailField;
     private CEPasswordField passwordField;
     private JCheckBox saveCredentialsCheckbox;
-    private CEButton signupInsteadButton;
+    private CETextButton signupInsteadButton;
+    private CETextButton forgotPassowordButton;
     private CEButton loginButton;
 
     public LoginPage() { init(); }
@@ -38,9 +37,9 @@ public class LoginPage extends JPanel implements Page {
         usernameOrEmailField = new CETextField().setPlaceholder("john.smith_").setAcceptanceRegex("[a-zA-Z0-9_.-@]+");
         passwordField = new CEPasswordField().setPlaceholderLength(8);
 
-        signupInsteadButton = new CEButton("Don't have an account?");
-        signupInsteadButton.putClientProperty(FlatClientProperties.STYLE, "borderWidth: 0; focusWidth: 0; background: null; foreground: #007aff");
-        signupInsteadButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        signupInsteadButton = new CETextButton("Don't have an account?", true);
+
+        forgotPassowordButton = new CETextButton("Forgot password", true);
 
         saveCredentialsCheckbox = new JCheckBox("Save credentials", true);
 
@@ -56,6 +55,7 @@ public class LoginPage extends JPanel implements Page {
         passwordField.pressButtonOnEnterIfCondition(loginButton,
                 Objects::nonNull, _ -> passwordField.showErrorBubble("Cannot submit an empty password"));
         signupInsteadButton.addActionListener(_ -> switchToSignupScreen());
+        forgotPassowordButton.addActionListener(_ -> switchToForgotPasswordScreen());
         loginButton.addActionListener(_ -> pressedLoginButton());
 
         JPanel contentCard = new JPanel(new GridBagLayout());
@@ -118,10 +118,14 @@ public class LoginPage extends JPanel implements Page {
         constraints.insets = new Insets(10, 0, 0, 0);
         contentCard.add(loginButton, constraints);
 
+        constraints.gridy = 7;
+        contentCard.add(forgotPassowordButton, constraints);
+
         add(contentCard, new GridBagConstraints());
     }
 
     private void switchToSignupScreen() { changePage(new SignupPage()); }
+    private void switchToForgotPasswordScreen() { changePage(new ForgotPasswordPage()); }
 
     @Override
     public JPanel getPanel() { return this; }
@@ -130,22 +134,29 @@ public class LoginPage extends JPanel implements Page {
         loginButton.setEnabled(false);
         String usernameOrEmail = usernameOrEmailField.getText();
         String password = new String(passwordField.getPassword());
-        if (!isEverythingValid(usernameOrEmail, password, true)) return;
+        boolean rememberMe = saveCredentialsCheckbox.isSelected();
+        if (!isEverythingValid(usernameOrEmail, password, true)) {
+            loginButton.setEnabled(true);
+            return;
+        }
 
-        TokenAndInfoResponse data = login(usernameOrEmail, password);
-        if (data.isValidResponse()) {
-            AccountData.setAccount(data);
-            EasySaves.addSetting("logged-in", String.valueOf(saveCredentialsCheckbox.isSelected()));
-            if (saveCredentialsCheckbox.isSelected()) {
-                EasySaves.addSecureSetting(usernameOrEmail.contains("@") ? "email" : "username", usernameOrEmail);
-                EasySaves.removeSetting(usernameOrEmail.contains("@") ? "username" : "email");
-                EasySaves.addSecureSetting("password", password);
-            } else {
-                EasySaves.removeSetting("username");
-                EasySaves.removeSetting("email");
-                EasySaves.removeSetting("password");
-            }
-        } else showError("An error occurred while logging in:\n" + data.getErrorCause());
+        AccountAuthResponse data = login(usernameOrEmail, password, rememberMe);
+
+        if (!data.isValidResponse()) {
+            showError("An error occurred while logging in:\n" + data.getErrorCause());
+            loginButton.setEnabled(true);
+            return;
+        }
+
+        if (data.has2FA()) {
+            loginButton.setEnabled(true);
+            changePage(new LoginCodePage(new LoginPayload(usernameOrEmail, password, rememberMe)));
+            return;
+        }
+
+        AccountData.setAccount(data);
+        if (rememberMe) saveCredentials(data);
+        else deleteCredentials();
 
         loginButton.setEnabled(true);
         changePage(new MainPage());

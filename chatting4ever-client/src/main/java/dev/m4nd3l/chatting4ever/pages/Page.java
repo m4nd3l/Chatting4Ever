@@ -3,13 +3,19 @@ package dev.m4nd3l.chatting4ever.pages;
 import dev.m4nd3l.chatting4ever.Chatting4EverClient;
 import dev.m4nd3l.chatting4ever.api.APIEndpoints;
 import dev.m4nd3l.chatting4ever.api.APIErrorException;
-import dev.m4nd3l.chatting4ever.api.payloads.ChangeEmailVisibility;
+import dev.m4nd3l.chatting4ever.api.payloads.account.ChangeEmailVisibility;
 import dev.m4nd3l.chatting4ever.api.payloads.Payload;
 import dev.m4nd3l.chatting4ever.api.payloads.account.*;
 import dev.m4nd3l.chatting4ever.api.payloads.info.IsEmailTakenPayload;
 import dev.m4nd3l.chatting4ever.api.payloads.info.IsUsernameTakenPayload;
-import dev.m4nd3l.chatting4ever.api.response.*;
+import dev.m4nd3l.chatting4ever.api.response.auth.SuccessResponse;
+import dev.m4nd3l.chatting4ever.api.response.auth.AccountAuthResponse;
+import dev.m4nd3l.chatting4ever.api.response.auth.TokenResponse;
+import dev.m4nd3l.chatting4ever.api.response.upload.UploadProfileImageResponse;
 import dev.m4nd3l.chatting4ever.api.response.data.ErrorData;
+import dev.m4nd3l.chatting4ever.api.response.info.EmailTakenResponse;
+import dev.m4nd3l.chatting4ever.api.response.info.UsernameTakenResponse;
+import dev.m4nd3l.easysaves.EasySaves;
 
 import javax.swing.*;
 import javax.swing.event.AncestorEvent;
@@ -18,6 +24,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 
 public interface Page {
     default void beforeActivating() { }
@@ -68,17 +75,23 @@ public interface Page {
         timer.start();
     }
 
-    default TokenAndInfoResponse register(String username, String displayedName, String email, String password) {
-        try { return APIEndpoints.register.sendPostRequest(new RegisterPayload(username, displayedName, email, password), TokenAndInfoResponse.class); }
-        catch (IOException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
-        catch (APIErrorException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
-        catch (Exception exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
+    default AccountAuthResponse register(String username, String displayedName, String email, String password, boolean handOutUUID) {
+        try { return APIEndpoints.register.sendPostRequest(new RegisterPayload(username, displayedName, email, password, handOutUUID), AccountAuthResponse.class); }
+        catch (IOException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
+        catch (Exception exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
-    default TokenAndInfoResponse login(String usernameOrEmail, String password) {
-        try { return APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password), TokenAndInfoResponse.class); }
-        catch (IOException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
-        catch (APIErrorException exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
-        catch (Exception exception) { return (TokenAndInfoResponse) new TokenAndInfoResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
+    default AccountAuthResponse login(String usernameOrEmail, String password, boolean handOutUUID) {
+        try { return APIEndpoints.login.sendPostRequest(new LoginPayload(usernameOrEmail, password, handOutUUID), AccountAuthResponse.class); }
+        catch (IOException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
+        catch (Exception exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
+    }
+    default AccountAuthResponse getDataLogin(LoginPayload loginData, String code, boolean handOutUUID) {
+        try { return APIEndpoints.getDataLogin.sendPostRequest(new GetDataLoginPayload(loginData.getUsernameOrEmail(), loginData.getPassword(), code, handOutUUID), AccountAuthResponse.class); }
+        catch (IOException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("No internet connection", true)).setSuccess(false); }
+        catch (APIErrorException exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData(exception.getErrorCause(), false)).setSuccess(false); }
+        catch (Exception exception) { return (AccountAuthResponse) new AccountAuthResponse().setErrorData(new ErrorData("Unknown error", false)).setSuccess(false); }
     }
     default ErrorData changeDisplayedName(String token, String newDisplayedName) { return postRequest(APIEndpoints.changeDisplayedName, token, new ChangeDisplayedNamePayload(newDisplayedName)); }
     default TokenResponse changeUsername(String token, String newUsername) {
@@ -141,6 +154,26 @@ public interface Page {
         if (params == null) return false;
         for (String param : params) if (isNullOrEmpty(param)) return true;
         return false;
+    }
+
+    default void changeUUID(UUID oldUUID, UUID newUUID) {
+        if (!UUID.fromString(EasySaves.getSecureSetting("uuid")).equals(oldUUID)) return;
+        EasySaves.addSecureSetting("uuid", newUUID.toString());
+    }
+
+    default void saveCredentials(AccountAuthResponse data) {
+        if (data.has2FA()) showError("An error occurred while saving credentials");
+        EasySaves.addSetting("logged-in", String.valueOf(true));
+        EasySaves.addSecureSetting("username", data.getUsername());
+        EasySaves.addSecureSetting("email", data.getEmail());
+        EasySaves.addSecureSetting("uuid", data.getUUID().toString());
+    }
+
+    default void deleteCredentials() {
+        EasySaves.addSetting("logged-in", String.valueOf(false));
+        EasySaves.removeSetting("username");
+        EasySaves.removeSetting("email");
+        EasySaves.removeSetting("uuid");
     }
 
     default InputStream getResource(String pathNoSlash) { return getClass().getResourceAsStream("/" + pathNoSlash); }

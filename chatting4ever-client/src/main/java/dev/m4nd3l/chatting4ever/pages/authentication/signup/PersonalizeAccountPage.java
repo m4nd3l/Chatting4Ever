@@ -1,10 +1,9 @@
 package dev.m4nd3l.chatting4ever.pages.authentication.signup;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import dev.m4nd3l.chatting4ever.Chatting4EverClient;
+import com.sun.tools.javac.Main;
 import dev.m4nd3l.chatting4ever.account.AccountData;
-import dev.m4nd3l.chatting4ever.api.APIEndpoints;
-import dev.m4nd3l.chatting4ever.api.response.UploadProfileImageResponse;
+import dev.m4nd3l.chatting4ever.api.response.upload.UploadProfileImageResponse;
 import dev.m4nd3l.chatting4ever.api.response.data.ErrorData;
 import dev.m4nd3l.chatting4ever.components.*;
 import dev.m4nd3l.chatting4ever.pages.MainPage;
@@ -18,7 +17,7 @@ import java.net.URI;
 import java.util.regex.Pattern;
 
 public class PersonalizeAccountPage extends JPanel implements Page {
-    private static final Pattern displayedNamePattern = Pattern.compile("^[^\\x21\\x23-\\x25\\x2E\\x2F\\x3A-\\x3F\\x5B-\\x5E\\x60\\x7B-\\x7E\\n\\r\\t]+$");
+    private static final Pattern displayedNamePattern = Pattern.compile("^[\\p{L}\\p{N} _-]+$");
     private static final Pattern descriptionPattern = Pattern.compile("^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$");
 
     private CEProfileImageEditor imageEditor;
@@ -44,12 +43,12 @@ public class PersonalizeAccountPage extends JPanel implements Page {
         }
         displayedNameTextField = new CETextField()
                 .setPlaceholder(AccountData.get().getUsername())
-                .setAcceptanceRegex("^[^\\x21\\x23-\\x25\\x2E\\x2F\\x3A-\\x3F\\x5B-\\x5E\\x60\\x7B-\\x7E\\n\\r\\t]+$");
+                .setAcceptanceRegex("^[\\p{L}\\p{N} _-]+$");
         displayedNameTextField.setText(displayedNameTextField.getPlaceholder());
         descriptionTextField = new CEMultilineTextField()
                 .setPlaceholder("Hey there! My name is " + displayedNameTextField.getPlaceholder())
                 .setAcceptanceRegex("^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$")
-                .setMaxChars(100)
+                .setMaxChars(150)
                 .setMaxLines(4);
         publicEmailCheckbox = new JCheckBox("Public email", false);
         nextButton = new CEButton("Next");
@@ -65,7 +64,6 @@ public class PersonalizeAccountPage extends JPanel implements Page {
 
         Dimension fixedSize = new Dimension(300, 35);
         displayedNameTextField.setPreferredSize(fixedSize);
-        descriptionTextField.setPreferredSize(descriptionTextField.getPreferredSize());
         nextButton.setPreferredSize(new Dimension(100, 40));
 
         GridBagConstraints constraints = new GridBagConstraints();
@@ -123,9 +121,13 @@ public class PersonalizeAccountPage extends JPanel implements Page {
     public JPanel getPanel() { return this; }
 
     private void pressedNextButton() {
+        nextButton.setEnabled(false);
         String displayedName = displayedNameTextField.getText();
         String description = descriptionTextField.getText();
-        if (!isEverythingValid(displayedName, description, true)) return;
+        if (!isEverythingValid(displayedName, description, true)) {
+            nextButton.setEnabled(true);
+            return;
+        }
 
         String token = AccountData.get().getToken();
 
@@ -142,18 +144,20 @@ public class PersonalizeAccountPage extends JPanel implements Page {
         if (publicEmailCheckbox.isSelected())
             changeEmailVisibility = changeEmailVisibility(token, true);
 
-        if (changeDisplayedName != null) showError( "An error occurred while changing displayed name:\n" + changeDisplayedName.getError());
-        if (changeProfileDescription != null) showError("An error occurred while changing profile description:\n" + changeProfileDescription.getError());
-        if (changeEmailVisibility != null) showError("An error occurred while changing email visibility:\n" + changeEmailVisibility.getError());
+        if (changeDisplayedName != null) showError( "An error occurred while changing displayed name:\n" + changeDisplayedName.getError() + "\nTry later...");
+        if (changeProfileDescription != null) showError("An error occurred while changing profile description:\n" + changeProfileDescription.getError() + "\nTry later...");
+        if (changeEmailVisibility != null) showError("An error occurred while changing email visibility:\n" + changeEmailVisibility.getError() + "\nTry later...");
 
         if (!imageEditor.hasChanged()) {
+            nextButton.setEnabled(true);
             changePage(new MainPage());
             return;
         }
 
         UploadProfileImageResponse uploadProfileImageResponse = uploadProfileImage(token, imageEditor.saveToTemp());
         if (uploadProfileImageResponse.getErrorData() != null) {
-            showError("An error occurred while uploading profile image:\n" + uploadProfileImageResponse.getErrorData().getError());
+            nextButton.setEnabled(true);
+            showError("An error occurred while uploading profile image:\n" + uploadProfileImageResponse.getErrorData().getError() + "\nTry later...");
             changePage(new MainPage());
             return;
         }
@@ -161,8 +165,9 @@ public class PersonalizeAccountPage extends JPanel implements Page {
         String url = uploadProfileImageResponse.getUrl();
 
         ErrorData changeProfileImage = changeProfileImage(token, url);
-        if (changeProfileImage != null) showError("An error occurred while changing profile image:\n" + changeProfileImage.getError());
+        if (changeProfileImage != null) showError("An error occurred while changing profile image:\n" + changeProfileImage.getError() + "\nTry later...");
 
+        nextButton.setEnabled(true);
         changePage(new MainPage());
     }
 

@@ -32,6 +32,7 @@ public class ErrorBubble {
     }
 
     private void show(boolean pointUp, int duration) {
+        if (!target.isShowing()) return;
         Point location = target.getLocationOnScreen();
 
         int y = pointUp ? location.y + target.getHeight() : location.y - popup.getHeight();

@@ -1,21 +1,14 @@
 package dev.m4nd3l.chatting4ever.pages.authentication.signup;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formdev.flatlaf.FlatClientProperties;
-import dev.m4nd3l.chatting4ever.Chatting4EverClient;
 import dev.m4nd3l.chatting4ever.account.AccountData;
-import dev.m4nd3l.chatting4ever.api.APIEndpoints;
-import dev.m4nd3l.chatting4ever.api.payloads.account.RegisterPayload;
-import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
-import dev.m4nd3l.chatting4ever.components.CEButton;
-import dev.m4nd3l.chatting4ever.components.CELabel;
-import dev.m4nd3l.chatting4ever.components.CEPasswordField;
-import dev.m4nd3l.chatting4ever.components.CETextField;
-import dev.m4nd3l.chatting4ever.pages.MainPage;
+import dev.m4nd3l.chatting4ever.api.payloads.account.LoginPayload;
+import dev.m4nd3l.chatting4ever.api.response.auth.AccountAuthResponse;
+import dev.m4nd3l.chatting4ever.components.*;
 import dev.m4nd3l.chatting4ever.pages.Page;
-import dev.m4nd3l.chatting4ever.pages.authentication.LoginPage;
+import dev.m4nd3l.chatting4ever.pages.authentication.login.LoginCodePage;
+import dev.m4nd3l.chatting4ever.pages.authentication.login.LoginPage;
 import dev.m4nd3l.easysaves.EasySaves;
-import dev.m4nd3l.easysaves.settings.EasySavesSettings;
 
 import java.awt.*;
 import java.util.regex.Pattern;
@@ -29,7 +22,7 @@ public class SignupPage extends JPanel implements Page {
     private CEPasswordField passwordField;
     private CEPasswordField confirmPasswordField;
     private JCheckBox saveCredentialsCheckbox;
-    private CEButton loginInsteadButton;
+    private CETextButton loginInsteadButton;
     private CEButton registerButton;
 
     public SignupPage() { init(); }
@@ -42,12 +35,12 @@ public class SignupPage extends JPanel implements Page {
         titleLabel.setFontSize(24);
         titleLabel.setFontStyle(Font.BOLD);
 
-        usernameField = new CETextField().setPlaceholder("john.smith_").setAcceptanceRegex("[a-zA-Z0-9_.-]+");
+        usernameField = new CETextField().setPlaceholder("john.smith_").setAcceptanceRegex("^[a-zA-Z0-9_.-]+$");
         emailField = new CETextField().setPlaceholder("john.smith99@example.org").setAcceptanceRegex("[a-zA-Z0-9_.-@]+");
         passwordField = new CEPasswordField();
         confirmPasswordField = new CEPasswordField();
 
-        loginInsteadButton = new CEButton("Already have an account?", true);
+        loginInsteadButton = new CETextButton("Already have an account?", true);
 
         saveCredentialsCheckbox = new JCheckBox("Save credentials", true);
 
@@ -60,7 +53,8 @@ public class SignupPage extends JPanel implements Page {
         passwordField.focusOnEnterIfCondition(confirmPasswordField, password -> password != null && passwordPattern.matcher(password).matches(),
                 _ -> passwordField.showErrorBubble("Password must be at least 8 characters long and contain at least one uppercase letter, \n" +
                         "one lowercase letter, one number, and one special character (@#$%^&+=!)"));
-        confirmPasswordField.pressButtonOnEnterIfCondition(registerButton, _ -> true, _ -> { });
+        confirmPasswordField.pressButtonOnEnter(registerButton);
+
         loginInsteadButton.addActionListener(_ -> switchToLoginScreen());
         registerButton.addActionListener(_ -> pressedRegisterButton());
 
@@ -154,26 +148,26 @@ public class SignupPage extends JPanel implements Page {
         String email = emailField.getText();
         String password = new String(passwordField.getPassword());
         String confirmPassword = new String(confirmPasswordField.getPassword());
-        if (!isEverythingValid(username, email, password, confirmPassword, true)) return;
+        boolean rememberMe = saveCredentialsCheckbox.isSelected();
+        if (!isEverythingValid(username, email, password, confirmPassword, true)) {
+            registerButton.setEnabled(true);
+            return;
+        }
 
-        TokenAndInfoResponse data = register(username, username, email, password);
-        if (data.isValidResponse()) {
-                AccountData.setAccount(data);
+        AccountAuthResponse data = register(username, username, email, password, rememberMe);
 
-            EasySaves.addSetting("logged-in", String.valueOf(saveCredentialsCheckbox.isSelected()));
-            if (saveCredentialsCheckbox.isSelected()) {
-                EasySaves.addSecureSetting("username", username);
-                EasySaves.addSecureSetting("email", email);
-                EasySaves.addSecureSetting("password", password);
-            } else {
-                EasySaves.removeSetting("username");
-                EasySaves.removeSetting("email");
-                EasySaves.removeSetting("password");
-            }
-        } else showError("An error occurred while signing up:\n" + data.getErrorCause());
+        if (!data.isValidResponse()) {
+            showError("An error occurred while logging in:\n" + data.getErrorCause());
+            registerButton.setEnabled(true);
+            return;
+        }
+
+        AccountData.setAccount(data);
+        if (rememberMe) saveCredentials(data);
+        else deleteCredentials();
 
         registerButton.setEnabled(true);
-        changePage(new PersonalizeAccountPage());
+        changePage(new VerifyEmailCodePage());
     }
 
     private boolean isEverythingValid(String username, String email, String password, String confirmPassword, boolean showBubbles) {

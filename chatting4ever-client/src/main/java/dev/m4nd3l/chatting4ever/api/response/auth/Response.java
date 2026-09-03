@@ -1,4 +1,4 @@
-package dev.m4nd3l.chatting4ever.api.response;
+package dev.m4nd3l.chatting4ever.api.response.auth;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -40,7 +40,7 @@ public class Response {
             if (response.wasSuccessful()) return response;
             try {
                 Map<String, Object> map = MAPPER.readValue(json, new TypeReference<Map<String, Object>>() { });
-                if (map.containsKey("timestamp") && map.containsKey("trace"))
+                if (map.containsKey("timestamp") && map.containsKey("trace")) {
                     response.setServerErrorData(new ServerErrorData(
                             (LocalDateTime) map.get("timestamp"),
                             (int) map.get("status"),
@@ -48,7 +48,8 @@ public class Response {
                             (String) map.get("trace"),
                             (String) map.get("message"),
                             (String) map.get("path")));
-                else if (map.containsKey("error"))
+                    response.setErrorData(new ErrorData(map.get("error") + ": " + map.get("message"), false));
+                } else if (map.containsKey("error"))
                     response.setErrorData(new ErrorData((String) map.get("error"), false));
             } catch (Exception _) { }
             return response;

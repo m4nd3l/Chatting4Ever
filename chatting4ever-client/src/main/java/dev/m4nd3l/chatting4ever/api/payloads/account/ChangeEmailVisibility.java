@@ -1,4 +1,6 @@
-package dev.m4nd3l.chatting4ever.api.payloads;
+package dev.m4nd3l.chatting4ever.api.payloads.account;
+
+import dev.m4nd3l.chatting4ever.api.payloads.Payload;
 
 import java.util.Map;
 

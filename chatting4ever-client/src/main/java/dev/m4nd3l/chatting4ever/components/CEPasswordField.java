@@ -58,8 +58,6 @@ public class CEPasswordField extends JPasswordField implements FontGetter {
     }
 
     public CEPasswordField onEnterPressed(Consumer<String> action) {
-        for (ActionListener listener : getActionListeners()) removeActionListener(listener);
-
         addActionListener(_ -> SwingUtilities.invokeLater(() -> action.accept(new String(getPassword()))));
         return this;
     }

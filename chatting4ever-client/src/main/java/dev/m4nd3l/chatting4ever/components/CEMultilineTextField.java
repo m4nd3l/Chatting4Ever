@@ -1,54 +1,82 @@
 package dev.m4nd3l.chatting4ever.components;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import org.intellij.lang.annotations.RegExp;
 
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.Timer;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.text.AbstractDocument;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DocumentFilter;
-import java.awt.Dimension;
-import java.awt.FontMetrics;
+import javax.swing.text.*;
+import java.awt.*;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
-public class CEMultilineTextField extends JScrollPane implements FontGetter {
-    private final InternalTextArea textArea;
+public class CEMultilineTextField extends JPanel implements FontGetter {
+    private final JTextArea textArea;
+    private final JScrollPane scrollPane;
+    private final JLabel counterLabel;
+
+    private int maxChars = -1;
+    private int maxLines = 10;
     private String fontName = defaultFontName;
     private String placeholder = "";
     private String acceptanceRegex = "[\\s\\S]*";
     private ErrorBubble errorPopup;
     private Timer clearErrorTimer;
-    private int maxChars = 0;
-    private int maxLines = 10;
 
     public CEMultilineTextField() {
-        textArea = new InternalTextArea();
-        setViewportView(textArea);
-        putClientProperty(FlatClientProperties.STYLE, "arc: 15");
+        super(new BorderLayout());
+
+        textArea = new JTextArea() {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                super.paintComponent(graphics);
+                if (getPlaceholder() == null || getPlaceholder().isEmpty() || !isNullOrEmpty(getText())) return;
+
+                Graphics2D graphics2D = (Graphics2D) graphics;
+                graphics2D.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                FontMetrics fontMetrics = graphics2D.getFontMetrics();
+                int x = getInsets().left;
+                int y = fontMetrics.getAscent() + getInsets().top;
+
+                graphics2D.drawString(getPlaceholder(), x, y);
+            }
+        };
+
+        scrollPane = new JScrollPane(textArea);
+        counterLabel = new JLabel();
 
         init();
     }
 
     private void init() {
-        textArea.resetFontKeepingFontName();
-        setupDocumentFilters();
-        updateScrollbarPolicy();
+        resetFontKeepingFontName();
+        putClientProperty(FlatClientProperties.STYLE, "arc: 15");
+        scrollPane.putClientProperty(FlatClientProperties.STYLE, "arc: 15");
 
-        textArea.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent documentEvent) { updateScrollbarPolicy(); }
-            @Override
-            public void removeUpdate(DocumentEvent documentEvent) { updateScrollbarPolicy(); }
-            @Override
-            public void changedUpdate(DocumentEvent documentEvent) { updateScrollbarPolicy(); }
-        });
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setOpaque(false);
 
-        clearErrorTimer = new Timer(2000, _ -> {
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+
+        counterLabel.setFont(getFont().deriveFont(10f));
+        counterLabel.setForeground(UIManager.getColor("textInactiveText"));
+
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
+        bottomPanel.setOpaque(false);
+        bottomPanel.add(counterLabel);
+
+        add(scrollPane, BorderLayout.CENTER);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        setupFilters();
+        updateCounter();
+
+        clearErrorTimer = new Timer(2000, event -> {
             putClientProperty(FlatClientProperties.OUTLINE, null);
             setToolTipText(null);
             repaint();
@@ -56,24 +84,39 @@ public class CEMultilineTextField extends JScrollPane implements FontGetter {
         clearErrorTimer.setRepeats(false);
     }
 
-    private void updateScrollbarPolicy() {
-        if (maxLines <= 10) {
-            setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-            setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-        } else {
-            if (textArea.getLineCount() > 10) setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-            else setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-        }
+    public CEMultilineTextField setMaxChars(int maxChars) {
+        this.maxChars = maxChars;
+        updateCounter();
+        return this;
     }
 
-    public String getText() { return textArea.getText(); }
-    public void setText(String text) { textArea.setText(text); }
-    public void replaceSelection(String content) { textArea.replaceSelection(content); }
+    public CEMultilineTextField setMaxLines(int maxLines) {
+        this.maxLines = maxLines;
+        updatePreferredSize();
+        return this;
+    }
+
+    private void updatePreferredSize() {
+        FontMetrics fontMetrics = textArea.getFontMetrics(textArea.getFont());
+        int fontHeight = fontMetrics.getHeight();
+        int targetLines = Math.min(maxLines, 10);
+        int calculatedHeight = (fontHeight * targetLines)
+                + counterLabel.getFontMetrics(counterLabel.getFont()).getHeight();
+
+        textArea.setRows(targetLines);
+        scrollPane.setPreferredSize(new Dimension(0, calculatedHeight));
+        revalidate();
+    }
+
+    private void updateCounter() {
+        int currentLength = textArea.getText().length();
+        if (maxChars > 0) counterLabel.setText(currentLength + "/" + maxChars);
+        else counterLabel.setText(String.valueOf(currentLength));
+    }
 
     public void showErrorBubble(String error) { showErrorBubble(error, 1500, true); }
     public void showErrorBubble(String error, int durationMilliseconds, boolean up) {
         putClientProperty(FlatClientProperties.OUTLINE, FlatClientProperties.OUTLINE_ERROR);
-
         if (errorPopup == null) errorPopup = new ErrorBubble(this, error, up, durationMilliseconds);
         else errorPopup.add(error, up, durationMilliseconds);
     }
@@ -81,37 +124,128 @@ public class CEMultilineTextField extends JScrollPane implements FontGetter {
     public CEMultilineTextField onTextChanged(Consumer<String> action) {
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent documentEvent) { action.accept(getText()); }
+            public void insertUpdate(DocumentEvent documentEvent) { handleTextChange(action); }
+
             @Override
-            public void removeUpdate(DocumentEvent documentEvent) { action.accept(getText()); }
+            public void removeUpdate(DocumentEvent documentEvent) { handleTextChange(action); }
+
             @Override
-            public void changedUpdate(DocumentEvent documentEvent) { action.accept(getText()); }
+            public void changedUpdate(DocumentEvent documentEvent) { handleTextChange(action); }
         });
         return this;
+    }
+
+    private void handleTextChange(Consumer<String> action) {
+        updateCounter();
+        action.accept(textArea.getText());
+    }
+
+    public String getText() { return textArea.getText(); }
+    public void setText(String text) {
+        textArea.setText(text);
+        updateCounter();
     }
 
     public String getAcceptanceRegex() { return acceptanceRegex; }
     public String getPlaceholder() { return placeholder; }
     public String getFontName() { return fontName; }
-    public int getMaxChars() { return maxChars; }
-    public int getMaxLines() { return maxLines; }
     public int getFontSize() { return textArea.getFont() != null ? textArea.getFont().getSize() : 12; }
     public int getFontStyle() { return textArea.getFont() != null ? textArea.getFont().getStyle() : 0; }
 
-    public CEMultilineTextField setAcceptanceRegex(String acceptanceRegex) { this.acceptanceRegex = acceptanceRegex; return this; }
-    public CEMultilineTextField setMaxChars(int maxChars) { this.maxChars = maxChars; repaint(); return this; }
-    public CEMultilineTextField setMaxLines(int maxLines) {
-        this.maxLines = maxLines - 1;
-        updateScrollbarPolicy();
-        revalidate();
-        return this;
+    public CEMultilineTextField setAcceptanceRegex(@RegExp String acceptanceRegex) { this.acceptanceRegex = acceptanceRegex; return this; }
+    public CEMultilineTextField resetFont() { setFontName(defaultFontName); setFont(getFont(fontName, -1, -1, textArea.getFont())); return this; }
+    public CEMultilineTextField resetFontKeepingFontName() { setFont(getFont(fontName, -1, -1, textArea.getFont())); return this; }
+    public CEMultilineTextField setPlaceholder(String placeholder) { this.placeholder = placeholder; repaint(); return this; }
+    public CEMultilineTextField setFontName(String fontName) { this.fontName = fontName; setFont(getFont(fontName, -1, -1, textArea.getFont())); return this; }
+    public CEMultilineTextField setFontSize(int size) { setFont(getFont(fontName, -1, size, textArea.getFont())); updatePreferredSize(); return this; }
+    public CEMultilineTextField setFontStyle(int style) { setFont(getFont(fontName, style, -1, textArea.getFont())); updatePreferredSize(); return this; }
+
+    @Override
+    public void setFont(Font font) {
+        super.setFont(font);
+        if (textArea != null) textArea.setFont(font);
     }
-    public CEMultilineTextField resetFont() { setFontName(defaultFontName); return this; }
-    public CEMultilineTextField resetFontKeepingFontName() { textArea.resetFontKeepingFontName(); return this; }
-    public CEMultilineTextField setPlaceholder(String placeholder) { this.placeholder = placeholder; textArea.repaint(); return this; }
-    public CEMultilineTextField setFontName(String fontName) { this.fontName = fontName; textArea.setFontName(fontName); return this; }
-    public CEMultilineTextField setFontSize(int size) { textArea.setFont(getFont(getFontName(), size, getFontStyle(), getFont())); return this; }
-    public CEMultilineTextField setFontStyle(int style) { textArea.setFont(getFont(getFontName(), getFontSize(), style, getFont())); return this; }
+
+    private void setupFilters() {
+        AbstractDocument document = (AbstractDocument) textArea.getDocument();
+        document.setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                if (string == null) return;
+
+                if (containsBannedChars(string)) {
+                    showBannedCharErrorBubble(string);
+                    return;
+                }
+
+                String filtered = filterBannedChars(string);
+
+                if (maxLines > 0 && filtered.contains("\n")) {
+                    int currentLines = textArea.getLineCount();
+                    int addedLines = countNewlines(filtered);
+                    if (currentLines + addedLines > maxLines) return;
+                }
+
+                if (maxChars > 0) {
+                    int currentLength = fb.getDocument().getLength();
+                    if (currentLength + filtered.length() > maxChars) {
+                        int allowedLength = maxChars - currentLength;
+                        if (allowedLength > 0) filtered = filtered.substring(0, allowedLength);
+                        else return;
+                    }
+                }
+
+                super.insertString(fb, offset, filtered, attr);
+                updateCounter();
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                if (text == null) return;
+
+                if (containsBannedChars(text)) {
+                    showBannedCharErrorBubble(text);
+                    return;
+                }
+
+                String filtered = filterBannedChars(text);
+
+                if (maxLines > 0 && filtered.contains("\n")) {
+                    int currentLines = textArea.getLineCount();
+                    int removedTextLines = countNewlines(fb.getDocument().getText(offset, length));
+                    int addedLines = countNewlines(filtered);
+                    if (currentLines - removedTextLines + addedLines > maxLines) return;
+
+                }
+
+                if (maxChars > 0) {
+                    int currentLength = fb.getDocument().getLength() - length;
+                    if (currentLength + filtered.length() > maxChars) {
+                        int allowedLength = maxChars - currentLength;
+                        if (allowedLength > 0) filtered = filtered.substring(0, allowedLength);
+                        else return;
+                    }
+                }
+
+                super.replace(fb, offset, length, filtered, attrs);
+                updateCounter();
+            }
+
+            @Override
+            public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
+                super.remove(fb, offset, length);
+                updateCounter();
+            }
+        });
+    }
+
+    private int countNewlines(String input) {
+        int count = 0;
+        for (char character : input.toCharArray()) {
+            if (character == '\n') count++;
+        }
+        return count;
+    }
 
     private void showBannedCharErrorBubble(String input) {
         String[] invalidChars = new String[input.length()];
@@ -134,108 +268,6 @@ public class CEMultilineTextField extends JScrollPane implements FontGetter {
         showErrorBubble(error.toString());
     }
 
-    private void setupDocumentFilters() {
-        if (textArea.getDocument() instanceof AbstractDocument) {
-            ((AbstractDocument) textArea.getDocument()).setDocumentFilter(new DocumentFilter() {
-                @Override
-                public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
-                    if (string == null) return;
-                    if (containsBannedChars(string)) showBannedCharErrorBubble(string);
-
-                    String filtered = filterBannedChars(string);
-
-                    if (maxLines > 0) {
-                        int currentLines = textArea.getLineCount();
-                        int addedLines = countNewlines(filtered);
-                        if (currentLines + addedLines > maxLines) {
-                            int allowedNewlines = maxLines - currentLines;
-                            filtered = truncateToMaxLines(filtered, Math.max(0, allowedNewlines));
-                        }
-                    }
-                    if (maxChars > 0) {
-                        int currentLength = fb.getDocument().getLength();
-                        int allowedLength = maxChars - currentLength;
-                        if (allowedLength <= 0) return;
-                        if (filtered.length() > allowedLength) filtered = filtered.substring(0, allowedLength);
-                    }
-
-                    if (!filtered.isEmpty()) {
-                        super.insertString(fb, offset, filtered, attr);
-                        textArea.repaint();
-                        revalidate();
-                    }
-                }
-
-                @Override
-                public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
-                    if (text == null) text = "";
-                    if (containsBannedChars(text)) showBannedCharErrorBubble(text);
-
-                    String filtered = filterBannedChars(text);
-
-                    if (maxLines > 0) {
-                        String fullText = fb.getDocument().getText(0, fb.getDocument().getLength());
-                        String textWithoutSelection = fullText.substring(0, offset) + fullText.substring(offset + length);
-                        int linesWithoutSelection = countNewlines(textWithoutSelection) + 1;
-                        int addedLines = countNewlines(filtered);
-
-                        if (linesWithoutSelection + addedLines - 1 > maxLines) {
-                            int allowedLines = maxLines - linesWithoutSelection + 1;
-                            filtered = truncateToMaxLines(filtered, Math.max(0, allowedLines));
-                        }
-                    }
-
-                    if (maxChars > 0) {
-                        int currentLength = fb.getDocument().getLength();
-                        int allowedLength = maxChars - (currentLength - length);
-                        if (allowedLength <= 0 && length == 0) return;
-                        if (filtered.length() > allowedLength) {
-                            filtered = filtered.substring(0, Math.max(0, allowedLength));
-                        }
-                    }
-
-                    super.replace(fb, offset, length, filtered, attrs);
-                    textArea.repaint();
-                    revalidate();
-                }
-
-                @Override
-                public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
-                    super.remove(fb, offset, length);
-                    textArea.repaint();
-                    revalidate();
-                }
-            });
-        }
-    }
-
-    private int countNewlines(String input) {
-        int count = 0;
-        for (int i = 0; i < input.length(); i++) {
-            if (input.charAt(i) == '\n') count++;
-        }
-        return count;
-    }
-
-    private String truncateToMaxLines(String input, int allowedNewlines) {
-        if (allowedNewlines <= 0) return "";
-        int newlinesFound = 0;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            if (c == '\n') {
-                if (newlinesFound >= allowedNewlines) break;
-                newlinesFound++;
-            }
-            sb.append(c);
-        }
-        return sb.toString();
-    }
-
-    public void paste() {
-        textArea.paste();
-    }
-
     private String filterBannedChars(String input) {
         if (input == null) return "";
         StringBuilder buffer = new StringBuilder();
@@ -251,19 +283,4 @@ public class CEMultilineTextField extends JScrollPane implements FontGetter {
     }
 
     private boolean isNullOrEmpty(String string) { return string == null || string.isEmpty(); }
-
-    private class InternalTextArea extends JTextArea implements FontGetter {
-        public void resetFontKeepingFontName() { setFont(getFont(fontName, -1, -1, getFont())); }
-        public void setFontName(String name) { fontName = name; setFont(getFont(fontName, -1, -1, getFont())); }
-    }
-
-    @Override
-    public Dimension getPreferredSize() {
-        Dimension dimensions = super.getPreferredSize();
-        FontMetrics fontMetrics = textArea.getFontMetrics(textArea.getFont());
-        int lineHeight = fontMetrics.getHeight();
-        int targetLines = maxLines <= 10 ? maxLines : Math.min(textArea.getLineCount(), 10);
-        dimensions.height = (lineHeight * targetLines) + getViewport().getInsets().top + getViewport().getInsets().bottom + 6;
-        return dimensions;
-    }
 }

@@ -1,6 +1,6 @@
 package dev.m4nd3l.chatting4ever.account;
 
-import dev.m4nd3l.chatting4ever.api.response.TokenAndInfoResponse;
+import dev.m4nd3l.chatting4ever.api.response.auth.AccountAuthResponse;
 
 import java.time.LocalDateTime;
 
@@ -17,10 +17,12 @@ public class AccountData {
                         "unknown",
                         "unknown",
                         LocalDateTime.now(),
+                        true,
+                        false,
                         false) : account;
     }
     public static void setAccount(AccountData account) { AccountData.account = account; }
-    public static void setAccount(TokenAndInfoResponse data) {
+    public static void setAccount(AccountAuthResponse data) {
         setAccount(
             new AccountData(
                     data.getToken(),
@@ -31,7 +33,9 @@ public class AccountData {
                     data.getProfileDescription(),
                     data.getProfileNote(),
                     data.getCreatedAt(),
-                    data.isPublicEmail()));
+                    data.isEmailVerified(),
+                    data.isPublicEmail(),
+                    data.uses2FA()));
     }
 
     private String token;
@@ -43,8 +47,11 @@ public class AccountData {
     private String profileNote;
     private LocalDateTime createdAt;
     private boolean publicEmail;
+    private boolean isEmailVerified;
+    private boolean uses2FA;
 
-    public AccountData(String token, String username, String displayedName, String email, String profileImageURL, String profileDescription, String profileNote, LocalDateTime createdAt, boolean publicEmail) {
+    public AccountData(String token, String username, String displayedName, String email, String profileImageURL, String profileDescription,
+                       String profileNote, LocalDateTime createdAt, boolean isEmailVerified, boolean publicEmail, boolean uses2FA) {
         this.token = token;
         this.username = username;
         this.displayedName = displayedName;
@@ -53,7 +60,9 @@ public class AccountData {
         this.profileDescription = profileDescription;
         this.profileNote = profileNote;
         this.createdAt = createdAt;
+        this.isEmailVerified = isEmailVerified;
         this.publicEmail = publicEmail;
+        this.uses2FA = uses2FA;
     }
 
     public String getToken() { return token; }
@@ -64,7 +73,9 @@ public class AccountData {
     public String getProfileDescription() { return profileDescription; }
     public String getProfileNote() { return profileNote; }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public boolean isPublicEmail() { return publicEmail; }
+    public boolean isEmailPublic() { return publicEmail; }
+    public boolean isEmailVerified() { return isEmailVerified; }
+    public boolean uses2FA() { return uses2FA; }
 
     public AccountData setToken(String token) { this.token = token; return this; }
     public AccountData setUsername(String username) { this.username = username; return this; }
@@ -75,4 +86,6 @@ public class AccountData {
     public AccountData setProfileNote(String profileNote) { this.profileNote = profileNote; return this; }
     public AccountData setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
     public AccountData setPublicEmail(boolean publicEmail) { this.publicEmail = publicEmail; return this; }
+    public AccountData setVerifiedEmail(boolean isEmailVerified) { this.isEmailVerified = isEmailVerified; return this; }
+    public AccountData setUses2FA(boolean uses2FA) { this.uses2FA = uses2FA; return this; }
 }

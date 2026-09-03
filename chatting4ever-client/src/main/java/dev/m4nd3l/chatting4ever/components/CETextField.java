@@ -1,6 +1,7 @@
 package dev.m4nd3l.chatting4ever.components;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import org.intellij.lang.annotations.RegExp;
 
 import javax.swing.*;
 import javax.swing.text.*;
@@ -25,7 +26,7 @@ public class CETextField extends JTextField implements FontGetter {
         putClientProperty(FlatClientProperties.STYLE, "arc: 15");
         setupBannedCharsFilter();
 
-        clearErrorTimer = new Timer(2000, event -> {
+        clearErrorTimer = new Timer(2000, _ -> {
             putClientProperty(FlatClientProperties.OUTLINE, null);
             setToolTipText(null);
             repaint();
@@ -62,8 +63,6 @@ public class CETextField extends JTextField implements FontGetter {
     }
 
     public CETextField onEnterPressed(Consumer<String> action) {
-        for (ActionListener listener : getActionListeners()) removeActionListener(listener);
-
         addActionListener(_ -> SwingUtilities.invokeLater(() -> action.accept(getText())));
         return this;
     }
@@ -88,7 +87,7 @@ public class CETextField extends JTextField implements FontGetter {
     public int getFontSize() { return getFont() != null ? getFont().getSize() : 12; }
     public int getFontStyle() { return getFont() != null ? getFont().getStyle() : 0; }
 
-    public CETextField setAcceptanceRegex(String acceptanceRegex) { this.acceptanceRegex = acceptanceRegex; return this; }
+    public CETextField setAcceptanceRegex(@RegExp String acceptanceRegex) { this.acceptanceRegex = acceptanceRegex; return this; }
     public CETextField resetFont() { setFontName(defaultFontName); setFont(getFont(fontName, -1, -1, getFont())); return this; }
     public CETextField resetFontKeepingFontName() { setFont(getFont(fontName, -1, -1, getFont())); return this; }
     public CETextField setPlaceholder(String placeholder) { this.placeholder = placeholder; repaint(); return this; }

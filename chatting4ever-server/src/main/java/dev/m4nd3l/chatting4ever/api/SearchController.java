@@ -17,7 +17,7 @@ public class SearchController {
     public SearchController(UserService userService) { this.userService = userService; }
 
     @PostMapping("/info")
-    public ResponseEntity<Map<String, Object>> info(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> info(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String toSearch = request.get("username");
 
         if (isSomeNull(token)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'token' header", "success", false));
@@ -48,7 +48,7 @@ public class SearchController {
     }
 
     @PostMapping("/search")
-    public ResponseEntity<Map<String, Object>> search(@RequestBody Map<String, String> request, @RequestHeader("token") String token) {
+    public ResponseEntity<Map<String, Object>> search(@RequestBody Map<String, String> request, @RequestHeader("Authorization") String token) {
         String query = request.get("query");
         String limitString = request.get("limit");
         String startString = request.get("start");

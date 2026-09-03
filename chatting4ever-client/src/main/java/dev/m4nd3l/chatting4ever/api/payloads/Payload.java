@@ -9,14 +9,14 @@ public abstract class Payload {
 
     protected String toJsonFormat(Map<String, String> payloadData) {
         StringBuilder json = new StringBuilder();
-        json.append("{\n");
+        json.append("{ ");
         List<Map.Entry<String, String>> entryList = new ArrayList<>(payloadData.entrySet());
         for (int i = 0; i < entryList.size(); i++) {
             Map.Entry<String, String> entry = entryList.get(i);
-            if (i != 0)  json.append(",\n");
-            json.append("\t\"").append(escape(entry.getKey())).append("\": \"").append(escape(entry.getValue())).append("\"");
+            if (i != 0)  json.append(",");
+            json.append("\"").append(escape(entry.getKey())).append("\":\"").append(escape(entry.getValue())).append("\"");
         }
-        json.append("\n}");
+        json.append(" }");
         return json.toString();
     }
 

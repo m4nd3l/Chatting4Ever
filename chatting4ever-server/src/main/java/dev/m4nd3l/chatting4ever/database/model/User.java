@@ -7,8 +7,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
 @Entity
@@ -25,9 +24,11 @@ public class User {
     @Column(name = "public_email") private boolean publicEmail;
     @Column(name = "password_hash") private String passwordHash;
     @Column(name = "is_online") private boolean online;
+    @Column(name = "uses_2fa") private boolean uses2FA;
     @Column(name = "profile_description") private String profileDescription;
     @Column(name = "profile_note") private String profileNote;
     @Column(name = "blocked_user_id") @CollectionTable(name = "blocked_users", joinColumns = @JoinColumn(name = "blocker_user_id")) @ElementCollection(fetch = FetchType.EAGER) private List<Long> blockedUsers;
+    @Column(name = "autologin_uuid") @CollectionTable(name = "autologin_uuids", joinColumns = @JoinColumn(name = "owner")) @ElementCollection(fetch = FetchType.EAGER) private Set<UUID> autologinUUIDs;
     @Column(name = "created_at", nullable = false, updatable = false) @CreationTimestamp private LocalDateTime creationDate;
     @Column(name = "updated_at") @UpdateTimestamp private LocalDateTime updatedAt;
 
@@ -36,14 +37,16 @@ public class User {
     public String getUsername() { return username; }
     public String getDisplayedName() { return displayedName; }
     public String getEmail() { return email; }
-    public boolean isVerifiedEmail() { return verifiedEmail; }
+    public boolean isEmailVerified() { return verifiedEmail; }
     public String getPassword() { return passwordHash; }
     public boolean isOnline() { return online; }
     public boolean isPublicEmail() { return publicEmail; }
+    public boolean uses2FA() { return uses2FA; }
     public String getProfileDescription() { return profileDescription; }
     public String getProfileNote() { return profileNote; }
     public LocalDateTime getCreationDate() { return creationDate; }
     public LocalDateTime getUpdatedAtDate() { return updatedAt; }
+    public boolean isUUIDValid(UUID uuid) { return autologinUUIDs != null && !autologinUUIDs.isEmpty() && autologinUUIDs.contains(uuid); }
     public boolean isBlocked(User user) { return isBlocked(user.getID()); }
     public boolean isBlocked(long userID) {
         if (blockedUsers == null || blockedUsers.isEmpty()) return false;
@@ -60,6 +63,7 @@ public class User {
     public User setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; return this; }
     public User setOnline(boolean online) { this.online = online; return this; }
     public User setPublicEmail(boolean publicEmail) { this.publicEmail = publicEmail; return this; }
+    public User set2FA(boolean uses2FA) { this.uses2FA = uses2FA; return this; }
     public User setProfileDescription(String profileDescription) { this.profileDescription = profileDescription; return this; }
     public User setProfileNote(String profileNote) { this.profileNote = profileNote; return this; }
     public User setCreationDate(LocalDateTime creationDate) { this.creationDate = creationDate; return this; }
@@ -74,9 +78,28 @@ public class User {
         action.accept(blockedUsers);
         return this;
     }
+    public User setAutologinUUIDs(Set<UUID> autologinUUIDs) { this.autologinUUIDs = autologinUUIDs; return this; }
+    public User addAutologinUUID(UUID uuid) { actionOnAutologinUUIDs(set -> set.add(uuid)); return this; }
+    public User removeAutologinUUID(UUID uuid) { actionOnAutologinUUIDs(set -> set.remove(uuid)); return this; }
+    public User actionOnAutologinUUIDs(Consumer<Set<UUID>> action) {
+        if (autologinUUIDs == null) autologinUUIDs = new HashSet<>();
+        action.accept(autologinUUIDs);
+        return this;
+    }
 
     public boolean checkPassword(String rawPassword) {
         if (passwordHash == null || rawPassword == null) return false;
         return encoder.matches(rawPassword, passwordHash);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return getID() == user.getID() &&
+               Objects.equals(getUsername(), user.getUsername()) &&
+               Objects.equals(getEmail(), user.getEmail()) && 
+               Objects.equals(passwordHash, user.passwordHash) &&
+               Objects.equals(getCreationDate(), user.getCreationDate());
     }
 }

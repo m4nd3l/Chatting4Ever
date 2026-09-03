@@ -24,7 +24,7 @@ public class MediaManagerController {
     public MediaManagerController(UserService userService) { this.userService = userService; }
 
     @PostMapping("/upload-profile-image")
-    public ResponseEntity<Map<String, Object>> uploadProfileImage(@RequestHeader("token") String token, @RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Map<String, Object>> uploadProfileImage(@RequestHeader("Authorization") String token, @RequestParam("file") MultipartFile file) {
         if (isSomeNull(token)) return ResponseEntity.status(400).body(Map.of("error", "Missing 'token' header", "success", false));
 
         String username = JWTTokenProvider.validateTokenAndGetUsername(token);

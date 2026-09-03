@@ -18,7 +18,7 @@ public class Chatting4EverWindow {
         window.setMinimumSize(new Dimension(1000, 800));
         setContent(page);
         window.pack();
-        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // TODO -> Add close adaptor to close the connection with the server
+        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // TODO -> Add close adaptor to run the app in the background in the system tray
         window.setLocationRelativeTo(null);
     }
 

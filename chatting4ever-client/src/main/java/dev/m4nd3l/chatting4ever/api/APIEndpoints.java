@@ -1,16 +1,19 @@
 package dev.m4nd3l.chatting4ever.api;
 
 import dev.m4nd3l.chatting4ever.api.payloads.Payload;
-import dev.m4nd3l.chatting4ever.api.response.Response;
+import dev.m4nd3l.chatting4ever.api.response.auth.Response;
+import dev.m4nd3l.loggerutil.LoggerUtils;
+import dev.m4nd3l.loggerutil.logger.Logger;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.util.List;
+
+import static dev.m4nd3l.chatting4ever.Chatting4EverClient.DEBUG;
 
 public class APIEndpoints {
     private static final HttpClient client = HttpClient.newHttpClient();
@@ -24,6 +27,8 @@ public class APIEndpoints {
 
     public static final APIEndpoint register = new APIEndpoint(auth + "register");
     public static final APIEndpoint login = new APIEndpoint(auth + "login");
+    public static final APIEndpoint autologin = new APIEndpoint(auth + "autologin");
+    public static final APIEndpoint getDataLogin = new APIEndpoint(auth + "get-data");
     public static final APIEndpoint changeUsername = new APIEndpoint(auth + "change-username");
     public static final APIEndpoint changeProfileImageURL = new APIEndpoint(auth + "change-profile-image");
     public static final APIEndpoint changeDisplayedName = new APIEndpoint(auth + "change-displayed-name");
@@ -47,62 +52,49 @@ public class APIEndpoints {
     public static final APIEndpoint uploadProfileImage = new APIEndpoint(media + "upload-profile-image");
 
     public static class APIEndpoint {
-        private String url;
+        private static final Logger LOGGER = LoggerUtils.getLogger();
+        private String URL;
 
-        public APIEndpoint(String url) { this.url = url; }
+        public APIEndpoint(String url) { this.URL = url; }
 
-        public String getUrl() { return url; }
+        public String getURL() { return URL; }
 
-        public APIEndpoint setUrl(String url) { this.url = url; return this; }
+        public APIEndpoint setURL(String URL) { this.URL = URL; return this; }
 
+        @SuppressWarnings("DuplicatedCode")
         public <T extends Response> T sendAuthenticatedGetRequest(String token, Class<T> clazz) throws Exception {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(URI.create(URL))
                     .header("Content-Type", "application/json")
-                    .header("token", token)
+                    .header("Authorization", token)
                     .header("Accept", "application/json")
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            T parsedResponse = Response.fromJson(response.body(), clazz);
-            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
-            if (parsedResponse == null) throw new Exception("");
-            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
-            else throw new APIErrorException(parsedResponse.getErrorData());
+            return makeRequest(request, clazz, "GET REQUEST");
         }
 
         public <T extends Response> T sendAuthenticatedPostRequest(String token, Payload payload, Class<T> clazz) throws Exception {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(URI.create(URL))
                     .header("Content-Type", "application/json")
-                    .header("token", token)
+                    .header("Authorization", token)
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(payload.getString()))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            T parsedResponse = Response.fromJson(response.body(), clazz);
-            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
-            if (parsedResponse == null) throw new Exception("");
-            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
-            else throw new APIErrorException(parsedResponse.getErrorData());
+            return makeRequest(request, clazz, payload.getString());
         }
 
         public <T extends Response> T sendPostRequest(Payload payload, Class<T> clazz) throws Exception {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(URI.create(URL))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(payload.getString()))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            T parsedResponse = Response.fromJson(response.body(), clazz);
-            if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
-            if (parsedResponse == null) throw new Exception("");
-            if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
-            else throw new APIErrorException(parsedResponse.getErrorData());
+            return makeRequest(request, clazz, payload.getString());
         }
 
         public <T extends Response> T uploadFile(String token, File file, Class<T> clazz) throws Exception {
@@ -116,14 +108,19 @@ public class APIEndpoints {
             byte[] footer = ("\r\n--" + boundary + "--\r\n").getBytes();
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getUrl()))
-                    .header("token", token)
+                    .uri(URI.create(getURL()))
+                    .header("Authorization", token)
                     .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                     .POST(HttpRequest.BodyPublishers.ofByteArrays(List.of(requestBody.getBytes(), fileBytes, footer)))
                     .build();
 
+            return makeRequest(request, clazz, "FILE - " + file.getAbsolutePath());
+        }
+
+        private <T extends Response> T makeRequest(HttpRequest request, Class<T> clazz, String payload) throws Exception {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             T parsedResponse = Response.fromJson(response.body(), clazz);
+            if (DEBUG) LOGGER.debug(getURL() + "\nHEADERS:\n" + Response.MAPPER.writeValueAsString(request.headers().map()) + "\nPAYLOAD:\n" + payload + "\nRESPONSE:\n" + response.body() + "\n\n");
             if (parsedResponse != null && parsedResponse.isValidResponse()) return parsedResponse;
             if (parsedResponse == null) throw new Exception("");
             if (parsedResponse.isServerError()) throw new APIErrorException(parsedResponse.getServerErrorData());
