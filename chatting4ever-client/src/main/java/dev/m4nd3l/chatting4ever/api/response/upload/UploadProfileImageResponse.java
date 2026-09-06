@@ -1,7 +1,7 @@
 package dev.m4nd3l.chatting4ever.api.response.upload;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import dev.m4nd3l.chatting4ever.api.response.auth.Response;
+import dev.m4nd3l.chatting4ever.api.response.Response;
 
 public class UploadProfileImageResponse extends Response {
     @JsonProperty("url") private String url;

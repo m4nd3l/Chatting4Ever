@@ -5,6 +5,9 @@ build/
 !**/src/test/**/build/
 .kotlin
 
+### Local test configurations and secrets ###
+src/test/resources/test-config.json
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml

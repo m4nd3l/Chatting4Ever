@@ -10,6 +10,7 @@ import java.util.Date;
 import static io.jsonwebtoken.io.Decoders.BASE64URL;
 
 public class JWTTokenProvider {
+    // TODO : USE HARDWARE KEY
     private static final String SECRET_STRING = "89a38907ee304a8ef5311f5f65aefc2700d64dd02091dc8722b34ad377ce86aa";
     private static final SecretKey cryptographicKey = Keys.hmacShaKeyFor(BASE64URL.decode(SECRET_STRING));
 

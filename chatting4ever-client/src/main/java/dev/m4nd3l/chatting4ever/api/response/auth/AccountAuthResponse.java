@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import dev.m4nd3l.chatting4ever.api.response.Response;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -58,5 +60,12 @@ public class AccountAuthResponse extends Response {
     public AccountAuthResponse setUses2FA(boolean uses2FA) { this.uses2FA = uses2FA; return this; }
     public AccountAuthResponse setUUID(UUID uuid) { this.uuid = uuid; return this; }
 
-    public boolean has2FA() { if (getUsername() != null) return uses2FA(); return getToken().equals("2fa_check_first1&/"); }
+    public boolean has2FA() { return getToken().equals("2fa_check_first1&/"); }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        AccountAuthResponse that = (AccountAuthResponse) o;
+        return isOnline() == that.isOnline() && isPublicEmail() == that.isPublicEmail() && isEmailVerified() == that.isEmailVerified() && uses2FA == that.uses2FA && Objects.equals(getUsername(), that.getUsername()) && Objects.equals(getProfileImageURL(), that.getProfileImageURL()) && Objects.equals(getDisplayedName(), that.getDisplayedName()) && Objects.equals(getProfileDescription(), that.getProfileDescription()) && Objects.equals(getProfileNote(), that.getProfileNote()) && Objects.equals(getCreatedAt(), that.getCreatedAt()) && Objects.equals(getEmail(), that.getEmail());
+    }
 }

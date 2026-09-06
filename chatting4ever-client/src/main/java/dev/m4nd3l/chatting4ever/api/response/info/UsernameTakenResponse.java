@@ -2,7 +2,7 @@ package dev.m4nd3l.chatting4ever.api.response.info;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import dev.m4nd3l.chatting4ever.api.response.auth.Response;
+import dev.m4nd3l.chatting4ever.api.response.Response;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UsernameTakenResponse extends Response {

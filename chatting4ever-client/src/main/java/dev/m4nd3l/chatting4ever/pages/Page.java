@@ -109,6 +109,7 @@ public interface Page {
     default ErrorData sendForgotPasswordCode(String email) { return  postRequest(APIEndpoints.forgotPassword, new ForgotPasswordPayload(email)); }
     default ErrorData verifyForgotPassword(String email, String code, String newPassword) { return postRequest(APIEndpoints.verifyForgotPassword, new VerifyForgotPassword(email, code, newPassword)); }
     default ErrorData changeEmailVisibility(String token, boolean newVisibility) { return postRequest(APIEndpoints.changeEmailVisibility, token, new ChangeEmailVisibility(newVisibility)); }
+    default ErrorData change2FA(String token, boolean new2FA) { return postRequest(APIEndpoints.change2FA, token, new Change2FA(new2FA)); }
     default ErrorData changeProfileImage(String token, String newURL) { return postRequest(APIEndpoints.changeProfileImageURL, token, new ChangeProfileImageURL(newURL)); }
     default ErrorData delete(String token, String password) { return postRequest(APIEndpoints.delete, token, new DeletePayload(password)); }
     default UploadProfileImageResponse uploadProfileImage(String token, File image) {

@@ -2,14 +2,20 @@ Chatting4Ever API Docs
 
 AUTH:
  - http://localhost:8080/api/auth/register: POST
-    - Takes: username, displayed-name, email, password
-    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa
+    - Takes: username, displayed-name, email, password, hand-out-token
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, verified-email, email, token, uses-2fa, uuid, success
  - http://localhost:8080/api/auth/login: POST
-    - Takes: username/email, password
-    - Returns: (username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa) OR (depending on 2FA) success
-- http://localhost:8080/api/auth/get-data: POST
-    - Takes: username/email, password, code
-    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, email, token, success, uses-2fa
+    - Takes: username/email, password, hand-out-token
+    - Returns: (username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, verified-email, email, token, uses-2fa, uuid, success) OR (depending on 2FA) success
+ - http://localhost:8080/api/auth/get-data: POST
+    - Takes: username/email, password, code, hand-out-token
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, verified-email, email, token, uses-2fa, uuid, success
+ - http://localhost:8080/api/auth/autologin: POST
+    - Takes: username/email, uuid
+    - Returns: username, displayed-name, online, profile-image-url, profile-description, profile-note, created-at, public-email, verified-email, email, token, uses-2fa, uuid, success
+ - http://localhost:8080/api/auth/change-2fa: POST
+    - Takes: token (header), 2fa
+    - Returns: success
  - http://localhost:8080/api/auth/change-username: POST
     - Takes: token (header), new-username
     - Returns: token, success
@@ -19,14 +25,17 @@ AUTH:
  - http://localhost:8080/api/auth/change-email: POST
     - Takes: token (header), new-email
     - Returns: success
+ - http://localhost:8080/api/auth/change-email-visibility: POST
+    - Takes: token (header), new-email-visibility
+    - Returns: success
  - http://localhost:8080/api/auth/change-password: POST
     - Takes: token (header), old-password, new-password
     - Returns: success
+ - http://localhost:8080/api/auth/change-profile-image: POST
+    - Takes: token (header), new-profile-image-url
+    - Returns: success
  - http://localhost:8080/api/auth/change-profile-description: POST
     - Takes: token (header), new-description
-    - Returns: success
- - http://localhost:8080/api/auth/change-email-visibility: POST
-    - Takes: token (header), new-email-visibility
     - Returns: success
  - http://localhost:8080/api/auth/change-profile-note: POST
     - Takes: token (header), new-note

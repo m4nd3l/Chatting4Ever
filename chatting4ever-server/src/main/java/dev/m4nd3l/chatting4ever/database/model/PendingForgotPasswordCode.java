@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Random;
 
 @Entity
-@Table(name = "pending_email_verification_codes")
+@Table(name = "pending_forgot_password_codes")
 public class PendingForgotPasswordCode {
     @Column(name = "id") @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private long ID;
     @Column(unique = true) private int code;
@@ -32,7 +32,7 @@ public class PendingForgotPasswordCode {
     public PendingForgotPasswordCode setCreationDate(LocalDateTime creationDate) { this.creationDate = creationDate; return this; }
     public PendingForgotPasswordCode setExpirationDate(LocalDateTime expirationDate) { this.expirationDate = expirationDate; return this; }
 
-    public boolean hasExpired() { return expirationDate.isAfter(LocalDateTime.now()); }
+    public boolean hasExpired() { return expirationDate.isBefore(LocalDateTime.now()); }
     public boolean verify(User user) { return Objects.equals(user.getID(), getUserID()) && getEmail().equals(user.getEmail()); }
 
     public PendingForgotPasswordCode generateID(PendingForgotPasswordCodeService service) {

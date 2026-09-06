@@ -1,4 +1,4 @@
-package dev.m4nd3l.chatting4ever.api.response.auth;
+package dev.m4nd3l.chatting4ever.api.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -16,8 +16,8 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Response {
     @JsonIgnore public static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
-    @JsonIgnore private ErrorData errorData;
-    @JsonIgnore private ServerErrorData serverErrorData;
+    @JsonIgnore private ErrorData errorData = null;
+    @JsonIgnore private ServerErrorData serverErrorData = null;
     @JsonProperty("success") private boolean success = false;
 
     public Response() { }

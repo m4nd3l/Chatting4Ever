@@ -1,7 +1,7 @@
 package dev.m4nd3l.chatting4ever.api;
 
 import dev.m4nd3l.chatting4ever.api.payloads.Payload;
-import dev.m4nd3l.chatting4ever.api.response.auth.Response;
+import dev.m4nd3l.chatting4ever.api.response.Response;
 import dev.m4nd3l.loggerutil.LoggerUtils;
 import dev.m4nd3l.loggerutil.logger.Logger;
 
@@ -41,6 +41,7 @@ public class APIEndpoints {
     public static final APIEndpoint forgotPassword = new APIEndpoint(auth + "forgot-password");
     public static final APIEndpoint verifyForgotPassword = new APIEndpoint(auth + "verify-forgot-password");
     public static final APIEndpoint changeEmailVisibility = new APIEndpoint(auth + "change-email-visibility");
+    public static final APIEndpoint change2FA = new APIEndpoint(auth + "change-2fa");
     public static final APIEndpoint delete = new APIEndpoint(auth + "delete");
 
     public static final APIEndpoint isUsernameTaken = new APIEndpoint(info + "is-username-taken");
